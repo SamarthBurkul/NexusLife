@@ -10,12 +10,9 @@ require('dotenv').config();
 const router = express.Router();
 router.use(authLimiter);
 
-// In-memory user store (mock for hackathon — replace with Supabase queries in prod)
-const users = new Map();
-
 /**
  * POST /api/auth/register
- * Create a new user account
+ * Create a new user account — persisted in Supabase
  */
 router.post('/register', [
   body('email').isEmail().withMessage('Valid email required'),
@@ -30,8 +27,14 @@ router.post('/register', [
 
     const { fullName, email, phone, password, aadhaar, domains } = req.body;
 
-    // Check if user already exists
-    if (users.has(email)) {
+    // Check if user already exists in Supabase
+    const { data: existing } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', email)
+      .single();
+
+    if (existing) {
       return res.status(400).json({ success: false, message: 'User already exists' });
     }
 
@@ -42,37 +45,55 @@ router.post('/register', [
     // Encrypt Aadhaar (sensitive data)
     const aadhaarHash = aadhaar ? encryptData(aadhaar) : null;
 
-    // Create user object
-    const userId = `user_${Date.now()}`;
-    const user = {
-      id: userId,
-      fullName,
-      email,
-      phone: phone || null,
-      passwordHash,
-      aadhaarHash,
-      domains: domains || [],
-      createdAt: new Date().toISOString(),
-    };
+    // Insert user into Supabase
+    const { data: newUser, error: insertError } = await supabase
+      .from('users')
+      .insert({
+        email,
+        phone: phone || null,
+        full_name: fullName,
+        password_hash: passwordHash,
+        aadhaar_hash: aadhaarHash,
+      })
+      .select('id, email, full_name, phone')
+      .single();
 
-    users.set(email, user);
+    if (insertError) {
+      console.error('Supabase insert error:', insertError.message);
+      return res.status(500).json({ success: false, message: 'Registration failed' });
+    }
 
-    // Generate JWT
+    // Create default user profile with zero scores
+    await supabase.from('user_profiles').insert({
+      user_id: newUser.id,
+      trust_score: 0,
+      education_score: 0,
+      finance_score: 0,
+      health_score: 0,
+      employment_score: 0,
+    });
+
+    // Generate JWT — keep same payload shape for AuthContext.jsx
     const token = jwt.sign(
-      { id: userId, email, fullName, phone },
+      { id: newUser.id, email: newUser.email, fullName: newUser.full_name, phone: newUser.phone },
       process.env.JWT_SECRET || 'nexuslife_jwt_secret_change_in_production',
       { expiresIn: '24h' }
     );
 
-    res.status(201).json({ success: true, token, user: { id: userId, email, fullName } });
+    res.status(201).json({
+      success: true,
+      token,
+      user: { id: newUser.id, email: newUser.email, fullName: newUser.full_name },
+    });
   } catch (err) {
+    console.error('Register error:', err.message);
     res.status(500).json({ success: false, message: 'Registration failed' });
   }
 });
 
 /**
  * POST /api/auth/login
- * Authenticate and return JWT
+ * Authenticate against Supabase and return JWT
  */
 router.post('/login', [
   body('email').isEmail(),
@@ -85,25 +106,36 @@ router.post('/login', [
     }
 
     const { email, password } = req.body;
-    const user = users.get(email);
 
-    if (!user) {
+    // Fetch user from Supabase
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, email, full_name, phone, password_hash')
+      .eq('email', email)
+      .single();
+
+    if (error || !user) {
       return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
 
-    const isMatch = await bcrypt.compare(password, user.passwordHash);
+    const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
       return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
 
     const token = jwt.sign(
-      { id: user.id, email: user.email, fullName: user.fullName, phone: user.phone },
+      { id: user.id, email: user.email, fullName: user.full_name, phone: user.phone },
       process.env.JWT_SECRET || 'nexuslife_jwt_secret_change_in_production',
       { expiresIn: '24h' }
     );
 
-    res.json({ success: true, token, user: { id: user.id, email: user.email, fullName: user.fullName } });
+    res.json({
+      success: true,
+      token,
+      user: { id: user.id, email: user.email, fullName: user.full_name },
+    });
   } catch (err) {
+    console.error('Login error:', err.message);
     res.status(500).json({ success: false, message: 'Login failed' });
   }
 });
