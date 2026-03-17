@@ -14,7 +14,8 @@ import ConnectSources from './pages/ConnectSources.jsx';
 import Profile from './pages/Profile.jsx';
 
 function PrivateRoute({ children }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
+  if (loading) return <div className="min-h-screen bg-dark flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div></div>;
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 }
 

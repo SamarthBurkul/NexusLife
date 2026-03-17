@@ -18,7 +18,7 @@ export default function Sidebar() {
   const { user } = useAuth();
 
   return (
-    <aside className="hidden md:flex flex-col fixed left-0 top-[57px] bottom-0 w-64 bg-card/50 border-r border-gray-800 z-30">
+    <aside className="hidden md:flex flex-col fixed left-0 top-[57px] bottom-0 w-64 bg-card/50 border-r border-gray-800 z-30 print:hidden">
       <nav className="flex-1 p-4 space-y-1">
         {navItems.map((item) => {
           const isActive = location.pathname === item.to;

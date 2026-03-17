@@ -39,6 +39,23 @@ router.get('/requests', async (req, res) => {
 });
 
 /**
+ * POST /api/consent/mock
+ * Generate a demo consent request for empty states
+ */
+router.post('/mock', async (req, res) => {
+  try {
+    const mockInst = ['State Bank of India', 'Apollo Hospital', 'Infosys HR'][Math.floor(Math.random() * 3)];
+    const mockPurpose = ['Loan App', 'Treatment Records', 'Background Check'][Math.floor(Math.random() * 3)];
+    const mockFields = ['Full Name', 'Date of Birth', 'Email', 'Credit Score'];
+    
+    const data = await createConsentRequest(mockInst, req.user.id, mockFields, mockPurpose);
+    res.status(201).json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
  * POST /api/consent/approve
  * Approve a consent request with selected fields and expiry
  */

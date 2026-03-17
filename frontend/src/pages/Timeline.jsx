@@ -26,7 +26,10 @@ export default function Timeline() {
   }, []);
 
   const addEvent = async () => {
-    if (!newEvent.title || !newEvent.institution || !newEvent.date) return;
+    if (!newEvent.title || !newEvent.institution || !newEvent.date) {
+      toast.error('Please fill all fields');
+      return;
+    }
     
     try {
       // Create new event
@@ -90,7 +93,7 @@ export default function Timeline() {
                   <input placeholder="Institution" value={newEvent.institution} onChange={(e) => setNewEvent({ ...newEvent, institution: e.target.value })}
                     className="w-full bg-dark border border-gray-700 rounded-lg px-4 py-3 text-white focus:border-primary focus:outline-none" />
                   <input type="date" value={newEvent.date} onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })}
-                    className="w-full bg-dark border border-gray-700 rounded-lg px-4 py-3 text-white focus:border-primary focus:outline-none" />
+                    className="w-full bg-dark border border-gray-700 rounded-lg px-4 py-3 text-white focus:border-primary focus:outline-none [&::-webkit-calendar-picker-indicator]:invert" />
                   <button onClick={addEvent} className="w-full bg-primary text-dark font-bold py-3 rounded-lg hover:shadow-lg hover:shadow-primary/25 transition">Add Event</button>
                 </div>
               </motion.div>

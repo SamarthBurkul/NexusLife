@@ -8,6 +8,14 @@ import { HiUser, HiMail, HiPhone, HiLockClosed, HiIdentification } from 'react-i
 
 const domains = ['Education', 'Health', 'Finance', 'Employment'];
 
+// InputField component moved outside to prevent re-renders losing focus
+const InputField = ({ icon: Icon, ...props }) => (
+  <div className="relative">
+    <Icon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+    <input {...props} className="w-full bg-dark border border-gray-700 rounded-lg pl-10 pr-4 py-3 text-white focus:border-primary focus:outline-none transition" />
+  </div>
+);
+
 export default function Register() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -45,13 +53,6 @@ export default function Register() {
   };
 
   const slideVariants = { enter: { x: 80, opacity: 0 }, center: { x: 0, opacity: 1 }, exit: { x: -80, opacity: 0 } };
-
-  const InputField = ({ icon: Icon, ...props }) => (
-    <div className="relative">
-      <Icon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-      <input {...props} className="w-full bg-dark border border-gray-700 rounded-lg pl-10 pr-4 py-3 text-white focus:border-primary focus:outline-none transition" />
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-dark flex items-center justify-center px-4">

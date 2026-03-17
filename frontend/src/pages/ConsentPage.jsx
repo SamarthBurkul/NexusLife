@@ -6,6 +6,7 @@ import ConsentCard from '../components/consent/ConsentCard.jsx';
 import FieldSelector from '../components/consent/FieldSelector.jsx';
 import { approveRequest, denyRequest, getRequests, getHistory } from '../services/consentService.js';
 import toast from 'react-hot-toast';
+import api from '../services/api.js';
 
 export default function ConsentPage() {
   const [tab, setTab] = useState('pending');
@@ -60,6 +61,18 @@ export default function ConsentPage() {
     }
   };
 
+  const generateMockRequest = async () => {
+    try {
+      setLoading(true);
+      await api.post('/consent/mock');
+      toast.success('Simulated incoming consent request');
+      await fetchData();
+    } catch (err) {
+      toast.error('Failed to simulate request');
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-dark">
       <Navbar />
@@ -78,39 +91,47 @@ export default function ConsentPage() {
             ))}
           </div>
 
-          {tab === 'pending' ? (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {requests.map((r) => (
-                <ConsentCard key={r.id} request={r}
-                  onApprove={() => setSelectedRequest(r)}
-                  onDeny={() => handleDeny(r.id)} />
-              ))}
-              {requests.length === 0 && <p className="text-gray-500 col-span-2 text-center py-12">No pending requests</p>}
-            </div>
-          ) : (
-            <div className="bg-card border border-gray-800 rounded-xl overflow-hidden">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-800">
-                    <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Institution</th>
-                    <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Purpose</th>
-                    <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Decision</th>
-                    <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Date</th>
+        {tab === 'pending' ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {requests.map((r) => (
+              <ConsentCard key={r.id} request={r}
+                onApprove={() => setSelectedRequest(r)}
+                onDeny={() => handleDeny(r.id)} />
+            ))}
+            {requests.length === 0 && !loading && (
+              <div className="col-span-1 lg:col-span-2 flex flex-col items-center justify-center py-16 bg-card border border-gray-800 rounded-xl">
+                <p className="text-gray-500 mb-4 whitespace-pre-wrap">No pending requests</p>
+                <button onClick={generateMockRequest} className="bg-primary/10 text-primary hover:bg-primary hover:text-dark px-4 py-2 rounded-lg text-sm font-semibold transition border border-primary/20">
+                  Simulate Request
+                </button>
+                <p className="text-xs text-gray-600 mt-2">Useful for Demo / Hackathon evaluation</p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="bg-card border border-gray-800 rounded-xl overflow-hidden">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-800">
+                  <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Institution</th>
+                  <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Purpose</th>
+                  <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Decision</th>
+                  <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((h) => (
+                  <tr key={h.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
+                    <td className="px-6 py-4 text-white">{h.institution}</td>
+                    <td className="px-6 py-4 text-gray-400">{h.purpose}</td>
+                    <td className="px-6 py-4"><span className={`px-2 py-1 rounded text-xs font-medium ${h.status === 'approved' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>{h.status}</span></td>
+                    <td className="px-6 py-4 text-gray-400">{new Date(h.decidedAt).toLocaleDateString()}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {mockHistory.map((h) => (
-                    <tr key={h.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
-                      <td className="px-6 py-4 text-white">{h.institution}</td>
-                      <td className="px-6 py-4 text-gray-400">{h.purpose}</td>
-                      <td className="px-6 py-4"><span className={`px-2 py-1 rounded text-xs font-medium ${h.status === 'approved' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>{h.status}</span></td>
-                      <td className="px-6 py-4 text-gray-400">{new Date(h.decidedAt).toLocaleDateString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
           {selectedRequest && (
             <FieldSelector request={selectedRequest}

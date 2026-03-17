@@ -19,7 +19,7 @@ export default function DataCards() {
   const toggleField = (f) => setSelectedFields((prev) => prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f]);
 
   const handleShare = () => toast.success('One-time link generated and copied!');
-  const handleDownload = () => toast.success('PDF downloaded!');
+  const handleDownload = () => window.print();
 
   const getFieldValue = (field) => {
     switch(field) {

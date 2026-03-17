@@ -5,6 +5,7 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('nexuslife_token'));
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (token) {
@@ -15,6 +16,7 @@ export function AuthProvider({ children }) {
         logout();
       }
     }
+    setLoading(false);
   }, [token]);
 
   const login = (jwtToken) => {
@@ -37,7 +39,7 @@ export function AuthProvider({ children }) {
   const isAuthenticated = !!token && !!user;
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated }}>
+    <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated, loading }}>
       {children}
     </AuthContext.Provider>
   );
