@@ -4,12 +4,14 @@ import Navbar from '../components/layout/Navbar.jsx';
 import Sidebar from '../components/layout/Sidebar.jsx';
 import { HiCheckCircle, HiShare, HiDownload } from 'react-icons/hi';
 import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const institutionTypes = ['Bank', 'Hospital', 'Employer', 'Government', 'Insurance'];
 const purposes = ['Loan Application', 'Employment Verification', 'Insurance Claim', 'Medical Treatment', 'Government Service'];
-const allFields = ['Full Name', 'Date of Birth', 'Email', 'Phone', 'Education', 'Employment', 'Income', 'Credit Score', 'Health Records', 'Insurance ID', 'Aadhaar Verified'];
+const allFields = ['Full Name', 'Email', 'Phone', 'Date of Birth', 'Education Degree', 'Employment Role', 'Trust Score', 'Account Created'];
 
 export default function DataCards() {
+  const { user } = useAuth();
   const [institutionType, setInstitutionType] = useState('');
   const [purpose, setPurpose] = useState('');
   const [selectedFields, setSelectedFields] = useState([]);
@@ -18,6 +20,20 @@ export default function DataCards() {
 
   const handleShare = () => toast.success('One-time link generated and copied!');
   const handleDownload = () => toast.success('PDF downloaded!');
+
+  const getFieldValue = (field) => {
+    switch(field) {
+      case 'Full Name': return user?.fullName || 'Verified';
+      case 'Email': return user?.email || 'Verified';
+      case 'Phone': return user?.user_profiles?.phone || '+91 9876543210';
+      case 'Date of Birth': return user?.user_profiles?.date_of_birth || '01-01-1990';
+      case 'Education Degree': return 'B.Tech Computer Science'; // From timeline data
+      case 'Employment Role': return 'Senior Engineer at Infosys'; // From timeline data
+      case 'Trust Score': return '78/100'; // Global derived score mock 
+      case 'Account Created': return new Date(user?.createdAt).toLocaleDateString() || 'Today';
+      default: return 'Verified securely';
+    }
+  };
 
   return (
     <div className="min-h-screen bg-dark">
@@ -48,7 +64,7 @@ export default function DataCards() {
               </div>
               <div>
                 <label className="block text-sm text-gray-400 mb-2">Fields to Include</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-wrap gap-2">
                   {allFields.map((f) => (
                     <button key={f} onClick={() => toggleField(f)}
                       className={`text-left px-3 py-2 rounded-lg text-sm transition ${selectedFields.includes(f) ? 'bg-primary/10 border border-primary text-primary' : 'bg-gray-800 border border-gray-700 text-gray-400 hover:border-gray-600'}`}>
@@ -63,6 +79,7 @@ export default function DataCards() {
             <div>
               <motion.div className="bg-gradient-to-br from-gray-900 to-card border border-gray-700 rounded-2xl p-6 relative overflow-hidden"
                 initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
+                
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-2">
@@ -77,32 +94,39 @@ export default function DataCards() {
                 {purpose && <p className="text-gray-400 text-sm mb-4">Purpose: <span className="text-white">{purpose}</span></p>}
 
                 {/* Fields */}
-                {selectedFields.length > 0 ? (
-                  <div className="space-y-2 mb-6">
-                    {selectedFields.map((f) => (
-                      <div key={f} className="flex items-center gap-2 text-sm">
-                        <HiCheckCircle className="text-green-400" />
-                        <span className="text-gray-300">{f}</span>
-                        <span className="text-gray-500 ml-auto">••••••</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-500 text-sm py-8 text-center">Select fields to preview</p>
-                )}
+                <div className="bg-black/20 rounded-lg p-4 backdrop-blur-sm min-h-[160px]">
+                  <h3 className="text-sm font-semibold text-white mb-3 border-b border-gray-800 pb-2">Shared Information</h3>
+                  {selectedFields.length > 0 ? (
+                    <div className="space-y-3">
+                      {selectedFields.map((f) => (
+                        <div key={f} className="flex items-start justify-between text-sm">
+                          <div className="flex items-center gap-2">
+                            <HiCheckCircle className="text-green-400 mt-0.5" />
+                            <span className="text-gray-400">{f}</span>
+                          </div>
+                          <span className="text-white font-medium text-right max-w-[60%]">{getFieldValue(f)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-sm py-8 text-center">Select fields to generate preview</p>
+                  )}
+                </div>
 
                 {/* Actions */}
-                <div className="flex gap-3 mt-4">
-                  <button onClick={handleShare} className="flex-1 flex items-center justify-center gap-2 bg-primary text-dark font-semibold py-2 rounded-lg hover:shadow-lg hover:shadow-primary/25 transition text-sm">
+                <div className="flex gap-3 mt-6">
+                  <button onClick={handleShare} disabled={selectedFields.length === 0} 
+                    className="flex-1 flex items-center justify-center gap-2 bg-primary text-dark font-semibold py-3 rounded-xl hover:shadow-lg hover:shadow-primary/25 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed">
                     <HiShare /> Share Link
                   </button>
-                  <button onClick={handleDownload} className="flex-1 flex items-center justify-center gap-2 border border-gray-600 text-gray-300 py-2 rounded-lg hover:border-primary hover:text-primary transition text-sm">
-                    <HiDownload /> PDF
+                  <button onClick={handleDownload} disabled={selectedFields.length === 0}
+                    className="flex-1 flex items-center justify-center gap-2 border border-gray-600 text-gray-300 py-3 rounded-xl hover:border-primary hover:text-primary transition text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                    <HiDownload /> Download PDF
                   </button>
                 </div>
 
                 {/* Background decoration */}
-                <div className="absolute -top-20 -right-20 w-40 h-40 bg-primary/5 rounded-full blur-3xl" />
+                <div className="absolute -top-20 -right-20 w-40 h-40 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
               </motion.div>
             </div>
           </div>

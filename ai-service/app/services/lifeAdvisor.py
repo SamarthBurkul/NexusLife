@@ -1,6 +1,6 @@
 """
 Life Advisor — AI-powered cross-domain insights engine
-Uses LangChain with OpenAI GPT-4 or Google Gemini
+Uses Google Gemini 2.0 directly using google-generativeai SDK
 """
 
 import os
@@ -15,20 +15,22 @@ from app.services.promptTemplates import (
     INSIGHT_GENERATION_PROMPT,
 )
 
-# Try to import LLM providers
-llm = None
-try:
-    use_model = os.getenv("USE_MODEL", "gemini")
-    if use_model == "openai":
-        from langchain_openai import ChatOpenAI
-        llm = ChatOpenAI(model="gpt-4-turbo", temperature=0.7)
-    else:
-        from langchain_google_genai import ChatGoogleGenerativeAI
-        llm = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0.7)
-    print(f"✅ AI Model loaded: {use_model}")
-except Exception as e:
-    print(f"⚠️  LLM not available: {e}. Using mock responses.")
+import google.generativeai as genai
 
+# Configure Gemini
+api_key = os.getenv("GOOGLE_API_KEY")
+is_configured = False
+if api_key:
+    try:
+        genai.configure(api_key=api_key)
+        # We use gemini-2.0-flash-exp as requested
+        model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        is_configured = True
+        print("✅ Gemini Model loaded: gemini-2.0-flash-exp")
+    except Exception as e:
+        print(f"⚠️  Failed to configure Gemini: {e}")
+else:
+    print("⚠️  No GOOGLE_API_KEY found. Using mock responses.")
 
 # Mock user profile for generating insights
 MOCK_PROFILE = {
@@ -39,31 +41,28 @@ MOCK_PROFILE = {
     "health": {"insurance_active": True, "insurance_expiry": "2025-12-31", "last_checkup": "2025-01-15"},
 }
 
-
 async def generate_insights(user_profile: Optional[dict] = None) -> List[dict]:
     """
-    Generate 5 proactive insights from user data using LLM.
+    Generate 5 proactive insights from user data using Gemini 2.0.
     Falls back to mock insights if LLM is unavailable.
     """
     profile = user_profile or MOCK_PROFILE
 
-    if llm:
+    if is_configured:
         try:
-            prompt = INSIGHT_GENERATION_PROMPT.format(user_data=json.dumps(profile, indent=2))
-            response = await llm.ainvoke([
-                {"role": "system", "content": LIFE_ADVISOR_SYSTEM_PROMPT},
-                {"role": "user", "content": prompt},
-            ])
-            # Try to parse JSON from response
-            text = response.content
+            prompt = f"{LIFE_ADVISOR_SYSTEM_PROMPT}\n\n{INSIGHT_GENERATION_PROMPT.format(user_data=json.dumps(profile, indent=2))}"
+            response = await model.generate_content_async(prompt)
+            text = response.text
+            
             # Extract JSON array if wrapped in markdown
             if "```json" in text:
                 text = text.split("```json")[1].split("```")[0]
             elif "```" in text:
                 text = text.split("```")[1].split("```")[0]
+            
             return json.loads(text.strip())
         except Exception as e:
-            print(f"LLM insight generation failed: {e}")
+            print(f"Gemini insight generation failed: {e}")
 
     # Fallback mock insights
     return [
@@ -74,31 +73,40 @@ async def generate_insights(user_profile: Optional[dict] = None) -> List[dict]:
         {"category": "health", "text": "No dental checkup recorded in 8 months. Schedule one for your health score.", "urgency": "low", "action": "Book appointment"},
     ]
 
-
-async def chat(message: str, history: list, user_context: Optional[dict] = None) -> str:
+async def chat(message: str, history: List[dict], user_context: Optional[dict] = None) -> str:
     """
-    Conversational chat with the AI advisor.
-    Maintains conversation history for context.
+    Conversational chat with the AI advisor using Gemini.
     """
-    if llm:
+    if is_configured:
         try:
-            messages = [{"role": "system", "content": LIFE_ADVISOR_SYSTEM_PROMPT}]
-
-            # Add history
-            for h in history[-10:]:  # Keep last 10 messages for context
-                role = "assistant" if h.get("role") == "ai" else "user"
-                messages.append({"role": role, "content": h.get("text", "")})
-
-            # Add user context if available
-            context_info = ""
+            # Format history for Gemini SDK
+            # user, model, user, model
+            formatted_history = []
+            
+            # Add system prompt as initial user context trick if needed, or prepend to current message
+            system_instruction = LIFE_ADVISOR_SYSTEM_PROMPT
             if user_context:
-                context_info = f"\n\nUser context: {json.dumps(user_context)}"
-
-            messages.append({"role": "user", "content": message + context_info})
-            response = await llm.ainvoke(messages)
-            return response.content
+                system_instruction += f"\n\nContext about the user: {json.dumps(user_context)}"
+            
+            for h in history[-10:]:
+                role = "model" if h.get("role") == "ai" else "user"
+                formatted_history.append({
+                    "role": role,
+                    "parts": [h.get("text", "")]
+                })
+            
+            # Start chat session
+            chat_session = model.start_chat(history=formatted_history)
+            
+            # Send message with system instructions prepended if this is the first real message
+            # Otherwise just send the message
+            full_message = f"System Instructions: {system_instruction}\n\nUser Question: {message}"
+            
+            response = await chat_session.send_message_async(full_message)
+            return response.text
+            
         except Exception as e:
-            print(f"LLM chat failed: {e}")
+            print(f"Gemini chat failed: {e}")
 
     # Fallback response
     return (

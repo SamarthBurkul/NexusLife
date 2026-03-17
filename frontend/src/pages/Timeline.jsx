@@ -1,29 +1,54 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Navbar from '../components/layout/Navbar.jsx';
 import Sidebar from '../components/layout/Sidebar.jsx';
 import LifeTimeline from '../components/timeline/LifeTimeline.jsx';
 import { HiPlus, HiX } from 'react-icons/hi';
-
-const mockEvents = [
-  { id: 1, type: 'education', title: 'B.Tech Computer Science', institution: 'MIT Pune', date: '2020-07-01', verified: true },
-  { id: 2, type: 'employment', title: 'Software Engineer at TCS', institution: 'TCS', date: '2021-01-15', verified: true },
-  { id: 3, type: 'health', title: 'Annual Health Checkup', institution: 'Apollo Hospital', date: '2022-03-10', verified: true },
-  { id: 4, type: 'finance', title: 'Home Loan Approved', institution: 'SBI', date: '2022-06-20', verified: true },
-  { id: 5, type: 'employment', title: 'Senior Engineer at Infosys', institution: 'Infosys', date: '2023-04-01', verified: true },
-  { id: 6, type: 'education', title: 'AWS Cloud Certification', institution: 'Amazon', date: '2023-09-15', verified: false },
-];
+import api from '../services/api.js';
+import toast from 'react-hot-toast';
 
 export default function Timeline() {
-  const [events, setEvents] = useState(mockEvents);
+  const [events, setEvents] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [newEvent, setNewEvent] = useState({ type: 'education', title: '', institution: '', date: '' });
 
-  const addEvent = () => {
+  const fetchEvents = async () => {
+    try {
+      const res = await api.get('/timeline/events');
+      setEvents(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to load events:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchEvents();
+  }, []);
+
+  const addEvent = async () => {
     if (!newEvent.title || !newEvent.institution || !newEvent.date) return;
-    setEvents((prev) => [...prev, { ...newEvent, id: Date.now(), verified: false }]);
-    setNewEvent({ type: 'education', title: '', institution: '', date: '' });
-    setShowModal(false);
+    
+    try {
+      // Create new event
+      await api.post('/timeline/events', {
+        title: newEvent.title,
+        institution: newEvent.institution,
+        date: newEvent.date,
+        type: newEvent.type
+      });
+      
+      toast.success('Event added successfully!');
+      
+      // Reset form and UI
+      setNewEvent({ type: 'education', title: '', institution: '', date: '' });
+      setShowModal(false);
+      
+      // Refresh timeline directly from backend to inherit real db IDs and validation layers
+      fetchEvents();
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to save event');
+    }
   };
 
   return (

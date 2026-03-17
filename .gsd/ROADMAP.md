@@ -12,12 +12,12 @@
 ## Phases
 
 ### Phase 1: Foundation — Supabase Auth + Data Persistence
-**Status**: 🔵 In Progress
+**Status**: ✅ Complete
 **Objective**: Replace in-memory Map() storage with Supabase for auth (register/login). Seed demo data. Ensure server survives restarts.
 **Requirements**: REQ-01, REQ-02
 
 ### Phase 2: Wire Frontend to Backend
-**Status**: ⬜ Not Started
+**Status**: 🔵 In Progress
 **Objective**: Connect Dashboard, Timeline, ConsentPage, ConnectSources, and TrustScore pages to real backend API endpoints. Add missing backend routes (timeline CRUD). Replace all hardcoded/mock data with API calls.
 **Requirements**: REQ-03
 

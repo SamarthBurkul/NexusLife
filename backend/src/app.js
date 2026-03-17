@@ -8,12 +8,27 @@ const consentRoutes = require('./routes/consent.routes');
 const trustscoreRoutes = require('./routes/trustscore.routes');
 const sourcesRoutes = require('./routes/sources.routes');
 const advisorRoutes = require('./routes/advisor.routes');
+const timelineRoutes = require('./routes/timeline.routes');
 const { generalLimiter } = require('./middleware/rateLimit.middleware');
 
 const app = express();
 
-// Middleware
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173', credentials: true }));
+// Middleware - CORS configuration
+const corsOptions = {
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin || /^http:\/\/localhost/.test(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(morgan('dev'));
 app.use(generalLimiter);
@@ -24,6 +39,7 @@ app.use('/api/consent', consentRoutes);
 app.use('/api/trustscore', trustscoreRoutes);
 app.use('/api/sources', sourcesRoutes);
 app.use('/api/advisor', advisorRoutes);
+app.use('/api/timeline', timelineRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

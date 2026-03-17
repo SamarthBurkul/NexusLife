@@ -6,6 +6,7 @@ import Sidebar from '../components/layout/Sidebar.jsx';
 import TrustScoreWidget from '../components/trustscore/TrustScoreWidget.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { HiShieldCheck, HiDocumentText, HiLink } from 'react-icons/hi';
+import api from '../services/api.js';
 
 const mockTrend = [
   { month: 'Oct', score: 62 }, { month: 'Nov', score: 65 }, { month: 'Dec', score: 68 },
@@ -21,9 +22,28 @@ const mockActivity = [
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [trustScore] = useState(78);
-  const [activeConsents] = useState(3);
-  const [connectedSources] = useState(4);
+  const [trustScore, setTrustScore] = useState(0);
+  const [activeConsents, setActiveConsents] = useState(0);
+  const [connectedSources, setConnectedSources] = useState(0);
+
+  useEffect(() => {
+    const fetchDashboardStats = async () => {
+      try {
+        const [scoreRes, consentRes, sourcesRes] = await Promise.all([
+          api.get('/trustscore'),
+          api.get('/consent/requests'),
+          api.get('/sources')
+        ]);
+        
+        setTrustScore(scoreRes.data?.data?.score || 0);
+        setActiveConsents(consentRes.data?.data?.length || 0);
+        setConnectedSources(sourcesRes.data?.data?.length || 0);
+      } catch (err) {
+        console.error('Failed to load dashboard stats', err);
+      }
+    };
+    fetchDashboardStats();
+  }, []);
 
   const quickStats = [
     { icon: HiShieldCheck, label: 'Trust Score', value: `${trustScore}/100`, color: 'text-primary', bg: 'bg-primary/10' },
