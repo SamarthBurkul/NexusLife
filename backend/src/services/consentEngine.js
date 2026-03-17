@@ -1,59 +1,33 @@
 const crypto = require('crypto');
 const { getRedisClient } = require('../config/redis');
+const { supabase } = require('../config/db');
 
 /**
  * ============================================
  * CONSENT ENGINE — Core of NexusLife
  * ============================================
- * Manages the entire consent lifecycle:
- * 1. Institution creates a consent request
- * 2. User reviews and approves/denies
- * 3. On approval: one-time consent token generated, stored in Redis with TTL
- * 4. Institution uses token to access only approved fields
- * 5. Every action is logged to the audit trail
  */
-
-// In-memory store for consent requests (mock for hackathon — replace with Supabase in prod)
-const consentRequests = new Map();
-const consentHistory = [];
-
-/**
- * Create a new consent request from an institution
- * @param {string} institutionId - ID of requesting institution
- * @param {string} userId - Target user ID
- * @param {string[]} requestedFields - Fields the institution wants
- * @param {string} purpose - Why the data is needed
- * @returns {object} Created consent request
- */
-function createConsentRequest(institutionId, userId, requestedFields, purpose) {
-  const id = crypto.randomUUID();
-  const request = {
-    id,
-    institutionId,
-    userId,
-    requestedFields,
-    purpose,
-    status: 'pending',
-    createdAt: new Date().toISOString(),
-  };
-  consentRequests.set(id, request);
-  return request;
-}
 
 /**
  * Approve a consent request
  * Generates a one-time consent token stored in Redis with TTL
- * @param {string} consentId - Consent request ID
- * @param {string} userId - User approving (must match request)
- * @param {string[]} approvedFields - Subset of fields user approves
- * @param {number} expiryHours - How long the token is valid
- * @returns {object} Approval result with consent token
  */
 async function approveConsent(consentId, userId, approvedFields, expiryHours = 24) {
-  const request = consentRequests.get(consentId);
+  console.log('Looking for consent:', consentId);
 
-  if (!request) throw new Error('Consent request not found');
-  if (request.userId !== userId) throw new Error('Unauthorized — not your consent request');
+  // 1. Fetch request from Supabase
+  const { data: request, error: fetchErr } = await supabase
+    .from('consent_requests')
+    .select('*')
+    .eq('id', consentId)
+    .single();
+
+  if (fetchErr || !request) {
+    console.error('Consent fetch error:', fetchErr?.message);
+    throw new Error('Consent request not found');
+  }
+
+  if (request.user_id !== userId) throw new Error('Unauthorized — not your consent request');
   if (request.status !== 'pending') throw new Error('Request already processed');
 
   // Generate one-time consent token
@@ -65,46 +39,69 @@ async function approveConsent(consentId, userId, approvedFields, expiryHours = 2
   await redis.setEx(`consent:${consentToken}`, ttl, JSON.stringify({
     consentId,
     userId,
-    institutionId: request.institutionId,
+    institutionId: request.institution_id,
     approvedFields,
     expiresAt: new Date(Date.now() + ttl * 1000).toISOString(),
   }));
 
-  // Update request status
-  request.status = 'approved';
-  request.approvedFields = approvedFields;
-  request.consentToken = consentToken;
-  request.expiresAt = new Date(Date.now() + ttl * 1000).toISOString();
-  consentRequests.set(consentId, request);
+  // Update request status in Supabase
+  const expiresAt = new Date(Date.now() + ttl * 1000).toISOString();
+  
+  const { error: updateErr } = await supabase
+    .from('consent_requests')
+    .update({ 
+      status: 'approved',
+      requested_fields: approvedFields // update to only approved fields
+    })
+    .eq('id', consentId);
+
+  if (updateErr) throw new Error('Failed to update consent request');
+
+  // Insert consent grant
+  const { error: grantErr } = await supabase
+    .from('consent_grants')
+    .insert({
+      consent_request_id: consentId,
+      consent_token: consentToken,
+      expires_at: expiresAt,
+      is_active: true
+    });
+    
+  if (grantErr) console.warn('Failed to insert consent grant:', grantErr.message);
 
   // Log to history
-  logConsentAction('approved', userId, consentId);
+  await logConsentAction('approved', userId, consentId);
 
-  return { consentToken, expiresAt: request.expiresAt, approvedFields };
+  return { consentToken, expiresAt, approvedFields };
 }
 
 /**
  * Deny a consent request
- * @param {string} consentId - Consent request ID
- * @param {string} userId - User denying
  */
-function denyConsent(consentId, userId) {
-  const request = consentRequests.get(consentId);
-  if (!request) throw new Error('Consent request not found');
-  if (request.userId !== userId) throw new Error('Unauthorized');
+async function denyConsent(consentId, userId) {
+  const { data: request, error: fetchErr } = await supabase
+    .from('consent_requests')
+    .select('*')
+    .eq('id', consentId)
+    .single();
+
+  if (fetchErr || !request) throw new Error('Consent request not found');
+  if (request.user_id !== userId) throw new Error('Unauthorized');
   if (request.status !== 'pending') throw new Error('Request already processed');
 
-  request.status = 'denied';
-  consentRequests.set(consentId, request);
+  const { error: updateErr } = await supabase
+    .from('consent_requests')
+    .update({ status: 'denied' })
+    .eq('id', consentId);
 
-  logConsentAction('denied', userId, consentId);
+  if (updateErr) throw new Error('Failed to update consent request');
+
+  await logConsentAction('denied', userId, consentId);
   return { success: true };
 }
 
 /**
  * Validate a consent token
- * @param {string} token - Consent token to validate
- * @returns {object|null} Approved fields if valid, null if expired/invalid
  */
 async function validateConsentToken(token) {
   const redis = await getRedisClient();
@@ -114,34 +111,60 @@ async function validateConsentToken(token) {
 
 /**
  * Log consent action to audit trail
- * @param {string} action - Action taken (approved/denied/accessed)
- * @param {string} userId - User ID
- * @param {string} consentId - Consent request ID
  */
-function logConsentAction(action, userId, consentId) {
-  consentHistory.push({
-    id: crypto.randomUUID(),
-    action,
-    userId,
-    consentId,
-    timestamp: new Date().toISOString(),
+async function logConsentAction(action, userId, consentId) {
+  await supabase.from('audit_logs').insert({
+    user_id: userId,
+    action: `consent_${action}`,
+    details: { consentId }
   });
 }
 
 /**
  * Get all pending consent requests for a user
  */
-function getPendingRequests(userId) {
-  return Array.from(consentRequests.values()).filter(
-    (r) => r.userId === userId && r.status === 'pending'
-  );
+async function getPendingRequests(userId) {
+  const { data, error } = await supabase
+    .from('consent_requests')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('status', 'pending');
+    
+  if (error) throw new Error(error.message);
+  return data;
 }
 
 /**
  * Get consent history for a user
  */
-function getConsentHistory(userId) {
-  return consentHistory.filter((h) => h.userId === userId);
+async function getConsentHistory(userId) {
+  const { data, error } = await supabase
+    .from('consent_requests')
+    .select('*')
+    .eq('user_id', userId)
+    .neq('status', 'pending')
+    .order('created_at', { ascending: false });
+    
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+// Keep create for any mock generation we still need
+async function createConsentRequest(institutionId, userId, requestedFields, purpose) {
+  const { data, error } = await supabase
+    .from('consent_requests')
+    .insert({
+      institution_id: institutionId,
+      user_id: userId,
+      requested_fields: requestedFields,
+      purpose,
+      status: 'pending'
+    })
+    .select()
+    .single();
+    
+  if (error) throw new Error(error.message);
+  return data;
 }
 
 module.exports = {

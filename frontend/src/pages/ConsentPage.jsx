@@ -1,36 +1,49 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Navbar from '../components/layout/Navbar.jsx';
 import Sidebar from '../components/layout/Sidebar.jsx';
 import ConsentCard from '../components/consent/ConsentCard.jsx';
 import FieldSelector from '../components/consent/FieldSelector.jsx';
-import { approveRequest, denyRequest } from '../services/consentService.js';
+import { approveRequest, denyRequest, getRequests, getHistory } from '../services/consentService.js';
 import toast from 'react-hot-toast';
-
-const mockRequests = [
-  { id: 1, institution: 'State Bank of India', fields: ['full_name', 'income', 'credit_score', 'employment_status'], purpose: 'Loan Application', expiry: '48 hours', createdAt: '2025-03-14T10:00:00Z', status: 'pending' },
-  { id: 2, institution: 'Apollo Hospital', fields: ['full_name', 'blood_group', 'allergies', 'insurance_id'], purpose: 'Treatment Records', expiry: '24 hours', createdAt: '2025-03-13T14:30:00Z', status: 'pending' },
-  { id: 3, institution: 'Infosys HR', fields: ['full_name', 'education', 'certifications'], purpose: 'Background Verification', expiry: '7 days', createdAt: '2025-03-12T09:00:00Z', status: 'pending' },
-];
-
-const mockHistory = [
-  { id: 101, institution: 'HDFC Bank', purpose: 'Credit Card Application', status: 'approved', decidedAt: '2025-03-10T11:00:00Z', fields: ['income', 'employment_status'] },
-  { id: 102, institution: 'LIC', purpose: 'Insurance Claim', status: 'denied', decidedAt: '2025-03-08T16:00:00Z', fields: ['health_records'] },
-  { id: 103, institution: 'TCS', purpose: 'Employment Verification', status: 'approved', decidedAt: '2025-03-05T10:00:00Z', fields: ['education', 'certifications'] },
-];
 
 export default function ConsentPage() {
   const [tab, setTab] = useState('pending');
-  const [requests, setRequests] = useState(mockRequests);
+  const [requests, setRequests] = useState([]);
+  const [history, setHistory] = useState([]);
   const [selectedRequest, setSelectedRequest] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [reqRes, histRes] = await Promise.all([
+        getRequests(),
+        getHistory()
+      ]);
+      setRequests(reqRes.data?.data || []);
+      setHistory(histRes.data?.data || []);
+    } catch (err) {
+      console.error('Failed to fetch consent data:', err);
+      toast.error('Failed to load consent data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleApprove = async (approvedFields, expiryHours) => {
     try {
       await approveRequest(selectedRequest.id, approvedFields, expiryHours);
       setRequests((prev) => prev.filter((r) => r.id !== selectedRequest.id));
       setSelectedRequest(null);
-      toast.success('Access granted');
-    } catch {
+      fetchData(); // Refresh history
+      toast.success('Approved successfully');
+    } catch (err) {
+      console.error(err);
       toast.error('Failed to approve');
     }
   };
@@ -39,8 +52,10 @@ export default function ConsentPage() {
     try {
       await denyRequest(id);
       setRequests((prev) => prev.filter((r) => r.id !== id));
+      fetchData(); // Refresh history
       toast.success('Request denied');
-    } catch {
+    } catch (err) {
+      console.error(err);
       toast.error('Failed to deny');
     }
   };
