@@ -18,8 +18,15 @@ export default function DataCards() {
 
   const toggleField = (f) => setSelectedFields((prev) => prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f]);
 
-  const handleShare = () => toast.success('One-time link generated and copied!');
-  const handleDownload = () => window.print();
+  const handleShare = async () => {
+    const shareUrl = `${window.location.origin}/datacards?shared=true&user=${encodeURIComponent(user?.email || 'verified')}`;
+    await navigator.clipboard.writeText(shareUrl);
+    toast.success('Link copied! Share this with the institution.');
+  };
+
+  const handleDownload = () => {
+    setTimeout(() => window.print(), 300);
+  };
 
   const getFieldValue = (field) => {
     switch(field) {
@@ -36,7 +43,14 @@ export default function DataCards() {
   };
 
   return (
-    <div className="min-h-screen bg-dark">
+    <div className="min-h-screen bg-dark print:bg-white">
+      <style>{`
+        @media print {
+          nav, .sidebar, .form-section, button { display: none !important; }
+          .card-preview { display: block !important; width: 100% !important; margin: 0 auto !important; box-shadow: none !important; border: 1px solid #ddd !important; }
+          body { background-color: white !important; }
+        }
+      `}</style>
       <Navbar />
       <div className="flex">
         <Sidebar />
@@ -45,7 +59,7 @@ export default function DataCards() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Form */}
-            <div className="bg-card border border-gray-800 rounded-xl p-6 space-y-5">
+            <div className="bg-card border border-gray-800 rounded-xl p-6 space-y-5 form-section">
               <div>
                 <label className="block text-sm text-gray-400 mb-2">Institution Type</label>
                 <select value={institutionType} onChange={(e) => setInstitutionType(e.target.value)}
@@ -76,7 +90,7 @@ export default function DataCards() {
             </div>
 
             {/* Preview */}
-            <div>
+            <div className="card-preview">
               <motion.div className="bg-gradient-to-br from-gray-900 to-card border border-gray-700 rounded-2xl p-6 relative overflow-hidden"
                 initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
                 

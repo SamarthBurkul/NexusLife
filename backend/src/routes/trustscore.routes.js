@@ -1,6 +1,7 @@
 const express = require('express');
 const axios = require('axios');
 const authMiddleware = require('../middleware/auth.middleware');
+const { supabase } = require('../config/db');
 require('dotenv').config();
 
 const router = express.Router();
@@ -22,16 +23,36 @@ const mockScore = {
  */
 router.get('/', async (req, res) => {
   try {
-    // Try to get from AI service
-    const aiUrl = process.env.AI_SERVICE_URL || 'http://localhost:8000';
-    try {
-      const aiRes = await axios.post(`${aiUrl}/ai/calculate`, { userData: { userId: req.user.id } }, { timeout: 5000 });
-      return res.json({ success: true, data: aiRes.data });
-    } catch {
-      // Fallback to mock data
+    let { data: profile } = await supabase.from('user_profiles').select('*').eq('user_id', req.user.id).single();
+    
+    // Auto-seed backwards compatibility fix for older users
+    if (!profile) {
+      const { data: newProfile } = await supabase.from('user_profiles').insert({
+        user_id: req.user.id, trust_score: 78, education_score: 22, finance_score: 20, health_score: 18, employment_score: 18
+      }).select().single();
+      profile = newProfile;
     }
 
-    res.json({ success: true, data: mockScore });
+    // Try to over-fetch from AI service for latest intelligence
+    const aiUrl = process.env.AI_SERVICE_URL || 'http://localhost:8000';
+    try {
+      const aiRes = await axios.post(`${aiUrl}/ai/calculate`, { userData: { userId: req.user.id } }, { timeout: 3000 });
+      if (aiRes.data && aiRes.data.score) {
+        return res.json({ success: true, data: aiRes.data });
+      }
+    } catch {
+      // Fallback successfully natively
+    }
+
+    res.json({ success: true, data: {
+      score: profile.trust_score,
+      total: profile.trust_score,
+      education: profile.education_score,
+      finance: profile.finance_score,
+      health: profile.health_score,
+      employment: profile.employment_score,
+      lastUpdated: new Date().toISOString()
+    }});
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

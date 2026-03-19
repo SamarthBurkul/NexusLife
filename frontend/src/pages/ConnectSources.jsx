@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Navbar from '../components/layout/Navbar.jsx';
 import Sidebar from '../components/layout/Sidebar.jsx';
 import toast from 'react-hot-toast';
+import api from '../services/api.js';
 import { HiCheckCircle, HiCloudUpload, HiRefresh } from 'react-icons/hi';
 import { FaIdCard, FaHospital, FaUniversity, FaLinkedin, FaFingerprint, FaFileInvoice } from 'react-icons/fa';
 
@@ -18,14 +19,30 @@ const sources = [
 export default function ConnectSources() {
   const [sourceList, setSourceList] = useState(sources);
 
-  const handleConnect = (id) => {
-    setSourceList((prev) => prev.map((s) => s.id === id ? { ...s, connected: true, lastSync: new Date().toISOString() } : s));
-    toast.success('Source connected successfully!');
+  useEffect(() => {
+    api.get('/sources').then(res => {
+      // Merge with icon/desc
+      setSourceList(sources.map(s => {
+        const db = res.data.data.find(d => d.id === s.id);
+        return db ? { ...s, connected: db.connected, lastSync: db.lastSync } : s;
+      }));
+    }).catch(console.error);
+  }, []);
+
+  const handleConnect = async (id) => {
+    try {
+      await api.post('/sources/connect', { sourceId: id });
+      setSourceList((prev) => prev.map((s) => s.id === id ? { ...s, connected: true, lastSync: new Date().toISOString() } : s));
+      toast.success('Source connected successfully!');
+    } catch { toast.error('Connection failed'); }
   };
 
-  const handleSync = (id) => {
-    setSourceList((prev) => prev.map((s) => s.id === id ? { ...s, lastSync: new Date().toISOString() } : s));
-    toast.success('Sync completed!');
+  const handleSync = async (id) => {
+    try {
+      await api.post(`/sources/sync/${id}`);
+      setSourceList((prev) => prev.map((s) => s.id === id ? { ...s, lastSync: new Date().toISOString() } : s));
+      toast.success('Sync completed!');
+    } catch { toast.error('Sync failed'); }
   };
 
   return (

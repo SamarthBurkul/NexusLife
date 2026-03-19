@@ -66,11 +66,11 @@ router.post('/register', [
     // Create default user profile with zero scores
     await supabase.from('user_profiles').insert({
       user_id: newUser.id,
-      trust_score: 0,
-      education_score: 0,
-      finance_score: 0,
-      health_score: 0,
-      employment_score: 0,
+      trust_score: 78,
+      education_score: 22,
+      finance_score: 20,
+      health_score: 18,
+      employment_score: 18,
     });
 
     // Generate JWT — keep same payload shape for AuthContext.jsx

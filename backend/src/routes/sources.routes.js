@@ -1,27 +1,27 @@
 const express = require('express');
 const authMiddleware = require('../middleware/auth.middleware');
 const { fetchDigiLockerData, fetchABHAData, fetchAAData, fetchLinkedInData } = require('../services/dataConnector');
+const { supabase } = require('../config/db');
 
 const router = express.Router();
 router.use(authMiddleware);
-
-// In-memory store for connected sources
-const connectedSources = new Map();
 
 /**
  * GET /api/sources
  * List all data sources and their connection status
  */
-router.get('/', (req, res) => {
-  const userSources = connectedSources.get(req.user.id) || {};
+router.get('/', async (req, res) => {
+  const { data: dbSources } = await supabase.from('connected_sources').select('*').eq('user_id', req.user.id);
+  const userMap = {};
+  if (dbSources) dbSources.forEach(s => userMap[s.source_name] = s);
 
   const sources = [
-    { id: 'digilocker', name: 'DigiLocker', category: 'Education/Govt', connected: !!userSources.digilocker, lastSync: userSources.digilocker?.lastSync || null },
-    { id: 'abha', name: 'ABHA', category: 'Health', connected: !!userSources.abha, lastSync: userSources.abha?.lastSync || null },
-    { id: 'aa', name: 'Account Aggregator', category: 'Finance', connected: !!userSources.aa, lastSync: userSources.aa?.lastSync || null },
-    { id: 'linkedin', name: 'LinkedIn/HRMS', category: 'Employment', connected: !!userSources.linkedin, lastSync: userSources.linkedin?.lastSync || null },
-    { id: 'aadhaar', name: 'Aadhaar Auth', category: 'Identity', connected: !!userSources.aadhaar, lastSync: userSources.aadhaar?.lastSync || null },
-    { id: 'pan', name: 'PAN Verification', category: 'Tax', connected: !!userSources.pan, lastSync: userSources.pan?.lastSync || null },
+    { id: 'digilocker', name: 'DigiLocker', category: 'Education/Govt', connected: !!userMap.digilocker, lastSync: userMap.digilocker?.last_sync || null },
+    { id: 'abha', name: 'ABHA', category: 'Health', connected: !!userMap.abha, lastSync: userMap.abha?.last_sync || null },
+    { id: 'aa', name: 'Account Aggregator', category: 'Finance', connected: !!userMap.aa, lastSync: userMap.aa?.last_sync || null },
+    { id: 'linkedin', name: 'LinkedIn/HRMS', category: 'Employment', connected: !!userMap.linkedin, lastSync: userMap.linkedin?.last_sync || null },
+    { id: 'aadhaar', name: 'Aadhaar Auth', category: 'Identity', connected: !!userMap.aadhaar, lastSync: userMap.aadhaar?.last_sync || null },
+    { id: 'pan', name: 'PAN Verification', category: 'Tax', connected: !!userMap.pan, lastSync: userMap.pan?.last_sync || null },
   ];
 
   res.json({ success: true, data: sources });
@@ -35,9 +35,12 @@ router.post('/connect', async (req, res) => {
   const { sourceId } = req.body;
   if (!sourceId) return res.status(400).json({ success: false, message: 'sourceId required' });
 
-  const userSources = connectedSources.get(req.user.id) || {};
-  userSources[sourceId] = { connected: true, lastSync: new Date().toISOString(), status: 'active' };
-  connectedSources.set(req.user.id, userSources);
+  await supabase.from('connected_sources').upsert({
+    user_id: req.user.id,
+    source_name: sourceId,
+    status: 'active',
+    last_sync: new Date().toISOString()
+  }, { onConflict: 'user_id, source_name' });
 
   // Fetch initial data from mock connector
   let data = null;
@@ -55,13 +58,8 @@ router.post('/connect', async (req, res) => {
 });
 
 /**
- * DELETE /api/sources/:sourceId
- * Disconnect a data source
- */
-router.delete('/:sourceId', (req, res) => {
-  const userSources = connectedSources.get(req.user.id) || {};
-  delete userSources[req.params.sourceId];
-  connectedSources.set(req.user.id, userSources);
+router.delete('/:sourceId', async (req, res) => {
+  await supabase.from('connected_sources').delete().eq('user_id', req.user.id).eq('source_name', req.params.sourceId);
   res.json({ success: true, message: 'Source disconnected' });
 });
 
@@ -71,9 +69,9 @@ router.delete('/:sourceId', (req, res) => {
  */
 router.post('/sync/:sourceId', async (req, res) => {
   const { sourceId } = req.params;
-  const userSources = connectedSources.get(req.user.id) || {};
+  const { data: source } = await supabase.from('connected_sources').select('id').eq('user_id', req.user.id).eq('source_name', sourceId).single();
 
-  if (!userSources[sourceId]) {
+  if (!source) {
     return res.status(400).json({ success: false, message: 'Source not connected' });
   }
 
@@ -86,8 +84,9 @@ router.post('/sync/:sourceId', async (req, res) => {
     default: break;
   }
 
-  userSources[sourceId].lastSync = new Date().toISOString();
-  connectedSources.set(req.user.id, userSources);
+  await supabase.from('connected_sources').update({
+    last_sync: new Date().toISOString()
+  }).eq('user_id', req.user.id).eq('source_name', sourceId);
 
   res.json({ success: true, message: 'Sync completed', data });
 });
