@@ -80,6 +80,14 @@ router.post('/register', [
       { user_id: newUser.id, event_type: 'health', title: 'Health Insurance Active', institution: 'Star Health', date: '2023-01-10', verified: true }
     ]);
 
+    // Seed 4 connected sources for optimal demo onboarding presentation
+    await supabase.from('connected_sources').insert([
+      { user_id: newUser.id, source_name: 'digilocker', status: 'connected', last_sync: new Date().toISOString() },
+      { user_id: newUser.id, source_name: 'abha', status: 'connected', last_sync: new Date().toISOString() },
+      { user_id: newUser.id, source_name: 'linkedin', status: 'connected', last_sync: new Date().toISOString() },
+      { user_id: newUser.id, source_name: 'aadhaar', status: 'connected', last_sync: new Date().toISOString() }
+    ]);
+
     // Generate JWT — keep same payload shape for AuthContext.jsx
     const token = jwt.sign(
       { id: newUser.id, email: newUser.email, fullName: newUser.full_name, phone: newUser.phone },

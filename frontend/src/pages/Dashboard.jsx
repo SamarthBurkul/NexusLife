@@ -46,9 +46,9 @@ export default function Dashboard() {
   }, []);
 
   const quickStats = [
-    { icon: HiShieldCheck, label: 'Trust Score', value: `${trustScore}/100`, color: 'text-primary', bg: 'bg-primary/10' },
-    { icon: HiDocumentText, label: 'Active Consents', value: activeConsents, color: 'text-accent', bg: 'bg-accent/10' },
-    { icon: HiLink, label: 'Connected Sources', value: connectedSources, color: 'text-secondary', bg: 'bg-secondary/10' },
+    { icon: HiShieldCheck, label: 'Trust Score', value: `${trustScore}/100`, color: 'text-primary', bg: 'bg-primary/10', border: 'border-l-4 border-teal-400' },
+    { icon: HiDocumentText, label: 'Active Consents', value: activeConsents, color: 'text-accent', bg: 'bg-accent/10', border: 'border-l-4 border-amber-400' },
+    { icon: HiLink, label: 'Connected Sources', value: connectedSources, color: 'text-secondary', bg: 'bg-secondary/10', border: 'border-l-4 border-purple-400' },
   ];
 
   return (
@@ -63,7 +63,7 @@ export default function Dashboard() {
             {/* Quick Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
               {quickStats.map((s, i) => (
-                <div key={i} className="bg-card border border-gray-800 rounded-xl p-5 flex items-center gap-4">
+                <div key={i} className={`bg-card border-y border-r border-gray-800 rounded-xl p-5 flex items-center gap-4 ${s.border}`}>
                   <div className={`p-3 rounded-lg ${s.bg}`}><s.icon className={`text-2xl ${s.color}`} /></div>
                   <div>
                     <p className="text-gray-400 text-sm">{s.label}</p>
@@ -87,7 +87,15 @@ export default function Dashboard() {
                     <p className="text-gray-400 text-sm">{user?.email || 'user@example.com'}</p>
                   </div>
                 </div>
-                <TrustScoreWidget score={trustScore} />
+                <div className="mt-6 border-t border-gray-800 pt-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-gray-400">Trust Score Indicator</span>
+                    <span className="text-primary font-bold">{trustScore} / 100</span>
+                  </div>
+                  <div className="relative w-full h-8 flex items-center justify-center bg-gray-900 rounded-full overflow-hidden">
+                    <div className="absolute left-0 top-0 h-full bg-gradient-to-r from-teal-500 to-primary transition-all duration-1000" style={{ width: `${trustScore}%` }}></div>
+                  </div>
+                </div>
               </div>
 
               {/* Recent Activity */}
@@ -96,7 +104,12 @@ export default function Dashboard() {
                 <div className="space-y-3">
                   {mockActivity.map((a) => (
                     <div key={a.id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-800/50 transition">
-                      <div className={`w-2 h-2 rounded-full mt-2 ${a.type === 'consent' ? 'bg-accent' : a.type === 'score' ? 'bg-primary' : a.type === 'sync' ? 'bg-secondary' : 'bg-blue-400'}`} />
+                      <div className={`w-3 h-3 rounded-full mt-1.5 shadow-md ${
+                        a.type === 'consent' ? 'bg-amber-400' : 
+                        a.type === 'score' ? 'bg-teal-400' : 
+                        a.type === 'sync' ? 'bg-teal-400 text-transparent' : 
+                        a.type === 'insight' ? 'bg-red-400' : 'bg-blue-400'
+                      }`} />
                       <div>
                         <p className="text-gray-300 text-sm">{a.text}</p>
                         <p className="text-gray-500 text-xs">{a.time}</p>

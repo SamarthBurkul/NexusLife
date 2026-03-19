@@ -37,14 +37,37 @@ export default function DataCards() {
   };
 
   const handleDownloadPDF = async () => {
-    const cardElement = document.getElementById('data-card-preview');
-    const canvas = await html2canvas(cardElement, { background: '#ffffff', scale: 2 });
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const imgWidth = 190;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
-    pdf.save('nexuslife-data-card.pdf');
+    try {
+      const cardElement = document.getElementById('data-card-preview');
+      const canvas = await html2canvas(cardElement, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        onclone: (clonedDoc) => {
+          const el = clonedDoc.getElementById('data-card-preview');
+          if (!el) return;
+          el.style.backgroundColor = '#ffffff';
+          el.style.color = '#000000';
+          el.style.fontFamily = 'Arial, sans-serif';
+          const allElements = el.querySelectorAll('*');
+          allElements.forEach(elem => {
+            const color = getComputedStyle(elem).color;
+            if (color && color.includes('oklch')) {
+              elem.style.color = color.replace(/oklch\([^)]+\)/g, '#000000');
+            }
+          });
+        }
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgWidth = 190;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
+      pdf.save('nexuslife-data-card.pdf');
+    } catch(err) {
+      toast.error('PDF generation failed: ' + err.message);
+    }
   };
 
   const getFieldValue = (field) => {

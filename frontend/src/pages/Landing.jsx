@@ -4,6 +4,7 @@ import {
   HiShieldCheck, HiClock, HiLightBulb, HiDocumentText, HiChartBar, HiLink, 
   HiOutlineLightningBolt 
 } from 'react-icons/hi';
+import { FiShield, FiLock, FiClock as FiClockIcon, FiFileText, FiCpu, FiTrendingUp } from 'react-icons/fi';
 import { FaCheckCircle } from 'react-icons/fa';
 
 const fadeUp = { hidden: { opacity: 0, y: 50 }, visible: { opacity: 1, y: 0 } };
@@ -25,12 +26,12 @@ const steps = [
 ];
 
 const features = [
-  { icon: HiShieldCheck, title: 'Unified Identity', desc: 'Securely link all your credentials in one place.' },
-  { icon: HiClock, title: 'Consent Engine', desc: 'Approve or deny access in one tap with field-level precision.' },
-  { icon: HiLink, title: 'Life Timeline', desc: 'A beautiful visual journey of your milestones.' },
-  { icon: HiDocumentText, title: 'Context Cards', desc: 'Share exactly what is needed—nothing more.' },
-  { icon: HiLightBulb, title: 'AI Life Advisor', desc: 'Intelligent, cross-domain actionable insights.' },
-  { icon: HiChartBar, title: 'Trust Score', desc: 'A unified metric measuring your digital reliability.' },
+  { icon: FiShield, title: 'Unified Identity', desc: 'Securely link all your credentials in one place.', color: 'text-teal-400' },
+  { icon: FiLock, title: 'Consent Engine', desc: 'Approve or deny access in one tap with field-level precision.', color: 'text-purple-400' },
+  { icon: FiClockIcon, title: 'Life Timeline', desc: 'A beautiful visual journey of your milestones.', color: 'text-amber-400' },
+  { icon: FiFileText, title: 'Context Cards', desc: 'Share exactly what is needed—nothing more.', color: 'text-blue-400' },
+  { icon: FiCpu, title: 'AI Life Advisor', desc: 'Intelligent, cross-domain actionable insights.', color: 'text-green-400' },
+  { icon: FiTrendingUp, title: 'Trust Score', desc: 'A unified metric measuring your digital reliability.', color: 'text-rose-400' },
 ];
 
 export default function Landing() {
@@ -51,13 +52,13 @@ export default function Landing() {
       </nav>
 
       {/* SECTION 1: HERO */}
-      <section className="relative min-h-[100vh] flex flex-col md:flex-row items-center max-w-7xl mx-auto px-6 pt-32 pb-20">
+      <section style={{ minHeight: '100vh', paddingTop: '80px' }} className="relative flex flex-col md:flex-row items-center max-w-7xl mx-auto px-6 pb-20">
         <div className="absolute top-0 right-0 w-[800px] height-[800px] bg-primary/5 rounded-full blur-[120px] pointer-events-none -translate-y-1/2 translate-x-1/3"></div>
         <div className="absolute bottom-0 left-0 w-[600px] height-[600px] bg-secondary/10 rounded-full blur-[100px] pointer-events-none translate-y-1/3 -translate-x-1/3"></div>
 
-        <motion.div className="flex-1 z-10 text-center md:text-left"
+        <motion.div className="flex-1 z-10 text-center md:text-left mt-20 md:mt-0"
           initial="hidden" animate="visible" variants={staggerContainer}>
-          <motion.h1 className="text-6xl md:text-8xl font-black leading-[1.1] tracking-tight mb-8" variants={fadeUp}>
+          <motion.h1 className="text-7xl font-black leading-[1.1] tracking-tight mb-8" variants={fadeUp}>
             <span className="text-white block">Your Life.</span>
             <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent block">One Passport.</span>
           </motion.h1>
@@ -79,7 +80,7 @@ export default function Landing() {
           initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 1, delay: 0.5 }}>
           <motion.div 
             animate={{ y: [0, -20, 0] }} transition={{ repeat: Infinity, duration: 6, ease: "easeInOut" }}
-            className="w-full max-w-md bg-gradient-to-br from-gray-900 to-[#0A0D1F] p-8 rounded-3xl border border-white/10 shadow-2xl relative">
+            className="w-[360px] bg-gradient-to-br from-gray-900 to-[#0A0D1F] p-8 rounded-3xl border border-white/10 shadow-2xl relative">
             <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 to-transparent rounded-3xl pointer-events-none"></div>
             <div className="flex items-center justify-between mb-8">
               <span className="text-2xl font-bold tracking-tight">NexusCard</span>
@@ -117,7 +118,7 @@ export default function Landing() {
             initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={staggerContainer}>
             {stats.map((s, i) => (
               <motion.div key={i} className="text-center pt-8 md:pt-0 first:pt-0" variants={fadeUp}>
-                <motion.div className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 mb-2">
+                <motion.div className="text-[48px] font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 mb-2">
                   {s.value}
                 </motion.div>
                 <div className="text-gray-400 font-medium tracking-wide">{s.label}</div>
@@ -169,9 +170,9 @@ export default function Landing() {
           <motion.div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
             initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={staggerContainer}>
             {features.map((f, i) => (
-              <motion.div key={i} variants={fadeUp} className="bg-[#0A0D1F] border border-white/10 p-8 rounded-3xl hover:border-primary/40 hover:bg-white/[0.02] transition-colors duration-300 group">
-                <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center mb-6 group-hover:bg-primary/10 transition-colors">
-                  <f.icon className="text-3xl text-gray-400 group-hover:text-primary transition-colors" />
+              <motion.div key={i} variants={fadeUp} className="bg-[#0A0D1F] border border-white/10 p-8 rounded-3xl hover:border-teal-400 hover:scale-[1.02] hover:bg-white/[0.02] transition-all duration-300 group">
+                <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center mb-6 group-hover:bg-teal-400/10 transition-colors">
+                  <f.icon className={`text-3xl ${f.color} transition-colors`} />
                 </div>
                 <h3 className="text-xl font-bold text-white mb-3">{f.title}</h3>
                 <p className="text-gray-400 leading-relaxed">{f.desc}</p>
@@ -184,10 +185,10 @@ export default function Landing() {
       {/* SECTION 5: CTA BANNER */}
       <section className="max-w-5xl mx-auto px-6 py-32">
         <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp}
-          className="bg-gradient-to-br from-primary to-accent rounded-[40px] p-12 md:p-20 text-center relative overflow-hidden shadow-[0_0_80px_rgba(20,241,149,0.2)]">
+          className="bg-[#028090] rounded-[40px] p-12 md:p-20 text-center relative overflow-hidden shadow-[0_0_80px_rgba(2,128,144,0.3)]">
           <div className="relative z-10">
-            <h2 className="text-4xl md:text-5xl font-black text-[#0A0D1F] mb-6">Start building your digital passport today</h2>
-            <p className="text-[#0A0D1F]/80 text-xl font-medium mb-10 max-w-2xl mx-auto">
+            <h2 className="text-4xl md:text-5xl font-black text-white mb-6">Start building your digital passport today</h2>
+            <p className="text-white/80 text-xl font-medium mb-10 max-w-2xl mx-auto">
               Join thousands securing their identity and controlling their data on NexusLife.
             </p>
             <Link to="/register" className="inline-block px-10 py-5 bg-[#0A0D1F] text-white font-bold rounded-2xl hover:scale-105 hover:shadow-2xl transition-all text-lg">
