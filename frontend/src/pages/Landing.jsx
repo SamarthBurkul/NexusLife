@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -35,6 +36,16 @@ const features = [
 ];
 
 export default function Landing() {
+  const names = ['Arjun Sharma', 'Jivesh Singasane', 'Ankita Pawar', 'Samarth Burkul', 'Asmee Jadhav'];
+  const [nameIdx, setNameIdx] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNameIdx((prev) => (prev + 1) % names.length);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#0A0D1F] text-white font-sans overflow-x-hidden selection:bg-primary/30">
       
@@ -89,7 +100,14 @@ export default function Landing() {
             <div className="space-y-6">
               <div>
                 <p className="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Holder Name</p>
-                <p className="text-2xl text-white font-medium">Arjun Sharma</p>
+                <motion.p 
+                  key={nameIdx}
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-2xl text-white font-medium"
+                >
+                  {names[nameIdx]}
+                </motion.p>
               </div>
               <div className="space-y-3 pt-4 border-t border-white/5">
                 {[
