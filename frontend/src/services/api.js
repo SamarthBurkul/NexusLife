@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 let baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-// Safely ensure it ends with /api if users forget it in Vercel config
-if (!baseURL.endsWith('/api') && !baseURL.includes('localhost')) {
+// Ensure baseURL consistently ends with /api (handle user configs that omit it)
+if (!baseURL.endsWith('/api')) {
   baseURL = `${baseURL.replace(/\/$/, '')}/api`;
 }
 
@@ -15,12 +15,26 @@ const api = axios.create({
 // Attach JWT token to every request
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('nexuslife_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-    console.log('[API] Token attached to request:', config.url);
-  } else {
-    console.warn('[API] No token found in localStorage for:', config.url);
+
+  // Ensure headers object exists
+  config.headers = config.headers || {};
+
+  // Don't attach Authorization header to auth endpoints (login/verify/etc.)
+  // This avoids accidental preflight/CORS issues and leaking tokens where not needed
+  if (config.url && config.url.includes('/auth/')) {
+    // ensure content-type is present for POSTs
+    if (!config.headers['Content-Type']) config.headers['Content-Type'] = 'application/json';
+    return config;
   }
+
+  if (token) {
+    // preserve existing headers while adding Authorization
+    config.headers = { ...config.headers, Authorization: `Bearer ${token}` };
+    console.log('[API] Authorization header attached for request:', config.url);
+  } else {
+    console.debug('[API] No token in localStorage for:', config.url);
+  }
+
   return config;
 });
 
