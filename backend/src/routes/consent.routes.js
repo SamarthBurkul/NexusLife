@@ -10,22 +10,50 @@ const {
 
 const router = express.Router();
 
+const parseFields = (fields) => {
+  if (Array.isArray(fields)) return fields;
+  if (typeof fields === 'string') {
+    try { 
+      const parsed = JSON.parse(fields); 
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) { 
+      return [fields]; 
+    }
+  }
+  return [];
+};
+
 // All consent routes require authentication
 router.use(authMiddleware);
 
 /**
  * GET /api/consent/requests
  * Get all pending consent requests for the authenticated user
+ * Auto-seeds with 3 demo requests if user has none
  */
 router.get('/requests', async (req, res) => {
   try {
-    const requests = await getPendingRequests(req.user.id);
+    let requests = await getPendingRequests(req.user.id);
+    
+    // Auto-seed demo requests if user has none
+    if (!requests || requests.length === 0) {
+      console.log('[CONSENT] Auto-seeding demo requests for user:', req.user.id);
+      const demoRequests = [
+        { inst: 'State Bank of India', fields: ['full_name','income','trust_score'], purpose: 'Loan Application' },
+        { inst: 'Apollo Hospital', fields: ['blood_group','health_insurance','allergies'], purpose: 'Treatment Records' },
+        { inst: 'Infosys HR', fields: ['full_name','education','certifications'], purpose: 'Background Verification' },
+      ];
+      for (const d of demoRequests) {
+        await createConsentRequest(d.inst, req.user.id, d.fields, d.purpose);
+      }
+      requests = await getPendingRequests(req.user.id);
+    }
 
     // Map Supabase fields to frontend expected ones
     const mappedRequests = requests.map(r => ({
       id: r.id,
       institution: r.institution_id, 
-      fields: r.requested_fields,
+      fields: parseFields(r.requested_fields),
       purpose: r.purpose,
       status: r.status,
       createdAt: r.created_at
@@ -62,10 +90,15 @@ router.post('/mock', async (req, res) => {
 router.post('/approve', async (req, res) => {
   try {
     console.log('Approve called with:', req.body);
-    const { consentId, approvedFields, expiryHours } = req.body;
+    let { consentId, approvedFields, expiryHours } = req.body;
 
-    if (!consentId || !approvedFields || approvedFields.length === 0) {
-      return res.status(400).json({ success: false, message: 'consentId and approvedFields required' });
+    // ensure approvedFields is fundamentally an array
+    if (typeof approvedFields === 'string') {
+        try { approvedFields = JSON.parse(approvedFields); } catch(e) { approvedFields = [approvedFields]; }
+    }
+
+    if (!consentId || !approvedFields || !Array.isArray(approvedFields) || approvedFields.length === 0) {
+      return res.status(400).json({ success: false, message: 'consentId and approvedFields array required' });
     }
 
     const result = await approveConsent(consentId, req.user.id, approvedFields, expiryHours || 24);
@@ -108,7 +141,7 @@ router.get('/history', async (req, res) => {
       institution: h.institution_id,
       purpose: h.purpose,
       status: h.status,
-      fields: h.requested_fields,
+      fields: parseFields(h.requested_fields),
       decidedAt: h.updated_at || h.created_at
     }));
 

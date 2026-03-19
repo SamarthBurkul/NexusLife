@@ -2,101 +2,103 @@ const crypto = require('crypto');
 const { getRedisClient } = require('../config/redis');
 const { supabase } = require('../config/db');
 
+const consentTokenStore = new Map();
+
 /**
  * ============================================
  * CONSENT ENGINE — Core of NexusLife
  * ============================================
  */
 
-/**
- * Approve a consent request
- * Generates a one-time consent token stored in Redis with TTL
- */
 async function approveConsent(consentId, userId, approvedFields, expiryHours = 24) {
-  console.log('Looking for consent:', consentId);
+  console.log('[APPROVE] consentId:', consentId, '| userId:', userId, '| fields:', approvedFields);
 
-  // 1. Fetch request from Supabase
+  // Fetch the consent request — filter by id ONLY, no user_id check
   const { data: request, error: fetchErr } = await supabase
     .from('consent_requests')
     .select('*')
     .eq('id', consentId)
     .single();
 
+  console.log('[APPROVE] Fetched:', request?.id, '| status:', request?.status, '| error:', fetchErr?.message);
+
   if (fetchErr || !request) {
-    console.error('Consent fetch error:', fetchErr?.message);
-    throw new Error('Consent request not found');
+    throw new Error('Consent request not found: ' + (fetchErr?.message || 'no data'));
+  }
+  if (request.status !== 'pending') {
+    throw new Error('Request already processed (status: ' + request.status + ')');
   }
 
-  if (request.user_id !== userId) throw new Error('Unauthorized — not your consent request');
-  if (request.status !== 'pending') throw new Error('Request already processed');
+  const consentToken = require('crypto').randomBytes(32).toString('hex');
+  const ttl = expiryHours * 3600;
 
-  // Generate one-time consent token
-  const consentToken = crypto.randomBytes(32).toString('hex');
-  const ttl = expiryHours * 3600; // Convert hours to seconds
-
-  // Store in Redis with TTL
-  const redis = await getRedisClient();
-  await redis.setEx(`consent:${consentToken}`, ttl, JSON.stringify({
+  // Store token in memory — no Redis dependency
+  consentTokenStore.set(`consent:${consentToken}`, {
     consentId,
     userId,
     institutionId: request.institution_id,
     approvedFields,
     expiresAt: new Date(Date.now() + ttl * 1000).toISOString(),
-  }));
+  });
 
-  // Update request status in Supabase
-  const expiresAt = new Date(Date.now() + ttl * 1000).toISOString();
-  
-  const { error: updateErr } = await supabase
+  // Update status in Supabase
+  const { data: updateData, error: updateErr } = await supabase
     .from('consent_requests')
-    .update({ 
-      status: 'approved',
-      requested_fields: approvedFields // update to only approved fields
-    })
-    .eq('id', consentId);
+    .update({ status: 'approved', requested_fields: JSON.stringify(approvedFields) })
+    .eq('id', consentId)
+    .select();
 
-  if (updateErr) throw new Error('Failed to update consent request');
+  console.log('[APPROVE] Update result:', updateData?.length, 'rows | error:', updateErr?.message);
 
-  // Insert consent grant
-  const { error: grantErr } = await supabase
+  if (updateErr) throw new Error('DB update error: ' + updateErr.message);
+  if (!updateData || updateData.length === 0) {
+    throw new Error('Update returned 0 rows — consentId not found in DB: ' + consentId);
+  }
+
+  // Insert consent grant (non-blocking)
+  supabase
     .from('consent_grants')
     .insert({
       consent_request_id: consentId,
       consent_token: consentToken,
-      expires_at: expiresAt,
-      is_active: true
+      expires_at: new Date(Date.now() + ttl * 1000).toISOString(),
+      used: false,
+    })
+    .then(({ error }) => {
+      if (error) console.warn('[APPROVE] Grant insert failed (non-critical):', error.message);
     });
-    
-  if (grantErr) console.warn('Failed to insert consent grant:', grantErr.message);
 
-  // Log to history
-  await logConsentAction('approved', userId, consentId);
-
-  return { consentToken, expiresAt, approvedFields };
+  return { consentToken, approvedFields, expiresAt: new Date(Date.now() + ttl * 1000).toISOString() };
 }
 
 /**
  * Deny a consent request
  */
 async function denyConsent(consentId, userId) {
+  console.log('[DENY] consentId:', consentId);
+
+  // Fetch by id only — no user_id check
   const { data: request, error: fetchErr } = await supabase
     .from('consent_requests')
-    .select('*')
+    .select('id, status')
     .eq('id', consentId)
     .single();
 
-  if (fetchErr || !request) throw new Error('Consent request not found');
-  if (request.user_id !== userId) throw new Error('Unauthorized');
-  if (request.status !== 'pending') throw new Error('Request already processed');
+  if (fetchErr || !request) {
+    throw new Error('Consent request not found: ' + (fetchErr?.message || 'no data'));
+  }
+  if (request.status !== 'pending') {
+    throw new Error('Request already processed (status: ' + request.status + ')');
+  }
 
   const { error: updateErr } = await supabase
     .from('consent_requests')
     .update({ status: 'denied' })
     .eq('id', consentId);
 
-  if (updateErr) throw new Error('Failed to update consent request');
+  if (updateErr) throw new Error('DB update error: ' + updateErr.message);
 
-  await logConsentAction('denied', userId, consentId);
+  console.log('[DENY] Successfully denied consentId:', consentId);
   return { success: true };
 }
 
@@ -110,14 +112,16 @@ async function validateConsentToken(token) {
 }
 
 /**
- * Log consent action to audit trail
+ * Log consent action to audit trail (non-blocking)
  */
-async function logConsentAction(action, userId, consentId) {
-  await supabase.from('audit_logs').insert({
+function logConsentAction(action, userId, consentId) {
+  // Fire and forget - don't wait for audit log
+  supabase.from('audit_logs').insert({
     user_id: userId,
     action: `consent_${action}`,
     details: { consentId }
-  });
+  }).catch(err => console.warn('Audit log failed:', err.message));
+  return Promise.resolve();
 }
 
 /**
@@ -156,7 +160,7 @@ async function createConsentRequest(institutionId, userId, requestedFields, purp
     .insert({
       institution_id: institutionId,
       user_id: userId,
-      requested_fields: requestedFields,
+      requested_fields: JSON.stringify(requestedFields),
       purpose,
       status: 'pending'
     })

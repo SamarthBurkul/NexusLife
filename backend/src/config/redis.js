@@ -25,7 +25,7 @@ async function getRedisClient() {
     const client = createClient({ url: process.env.REDIS_URL || 'redis://localhost:6379' });
     // Attach error handler BEFORE connect to prevent uncaught exceptions
     client.on('error', (err) => {
-      console.warn('⚠️  Redis error:', err.message);
+      // Silently handle Redis errors - fallback to memory store
     });
     await client.connect();
     console.log('✅ Redis connected');

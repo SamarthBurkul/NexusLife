@@ -8,13 +8,7 @@ import { HiUser, HiMail, HiPhone, HiLockClosed, HiIdentification } from 'react-i
 
 const domains = ['Education', 'Health', 'Finance', 'Employment'];
 
-// InputField component moved outside to prevent re-renders losing focus
-const InputField = ({ icon: Icon, ...props }) => (
-  <div className="relative">
-    <Icon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-    <input {...props} className="w-full bg-dark border border-gray-700 rounded-lg pl-10 pr-4 py-3 text-white focus:border-primary focus:outline-none transition" />
-  </div>
-);
+const slideVariants = { enter: { x: 80, opacity: 0 }, center: { x: 0, opacity: 1 }, exit: { x: -80, opacity: 0 } };
 
 export default function Register() {
   const [step, setStep] = useState(1);
@@ -52,8 +46,6 @@ export default function Register() {
     }
   };
 
-  const slideVariants = { enter: { x: 80, opacity: 0 }, center: { x: 0, opacity: 1 }, exit: { x: -80, opacity: 0 } };
-
   return (
     <div className="min-h-screen bg-dark flex items-center justify-center px-4">
       <div className="w-full max-w-md">
@@ -72,23 +64,41 @@ export default function Register() {
           ))}
         </div>
 
-        <div className="bg-card border border-gray-800 rounded-2xl p-8">
+        <form onSubmit={(e) => e.preventDefault()} className="bg-card border border-gray-800 rounded-2xl p-8">
           <AnimatePresence mode="wait">
             {step === 1 && (
               <motion.div key="step1" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }} className="space-y-4">
                 <h2 className="text-xl font-semibold text-white mb-4">Personal Details</h2>
-                <InputField icon={HiUser} placeholder="Full Name" value={form.fullName} onChange={(e) => update('fullName', e.target.value)} />
-                <InputField icon={HiMail} type="email" placeholder="Email" value={form.email} onChange={(e) => update('email', e.target.value)} />
-                <InputField icon={HiPhone} placeholder="Phone" value={form.phone} onChange={(e) => update('phone', e.target.value)} />
-                <InputField icon={HiLockClosed} type="password" placeholder="Password" value={form.password} onChange={(e) => update('password', e.target.value)} />
+                <div className="relative">
+                  <HiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                  <input placeholder="Full Name" value={form.fullName} autoComplete="name" onChange={(e) => update('fullName', e.target.value)} className="w-full bg-dark border border-gray-700 rounded-lg pl-10 pr-4 py-3 text-white focus:border-primary focus:outline-none transition" />
+                </div>
+                <div className="relative">
+                  <HiMail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                  <input type="email" placeholder="Email" value={form.email} autoComplete="username" onChange={(e) => update('email', e.target.value)} className="w-full bg-dark border border-gray-700 rounded-lg pl-10 pr-4 py-3 text-white focus:border-primary focus:outline-none transition" />
+                </div>
+                <div className="relative">
+                  <HiPhone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                  <input placeholder="Phone" value={form.phone} autoComplete="tel" onChange={(e) => update('phone', e.target.value)} className="w-full bg-dark border border-gray-700 rounded-lg pl-10 pr-4 py-3 text-white focus:border-primary focus:outline-none transition" />
+                </div>
+                <div className="relative">
+                  <HiLockClosed className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                  <input type="password" placeholder="Password" value={form.password} autoComplete="new-password" onChange={(e) => update('password', e.target.value)} className="w-full bg-dark border border-gray-700 rounded-lg pl-10 pr-4 py-3 text-white focus:border-primary focus:outline-none transition" />
+                </div>
                 <button onClick={() => setStep(2)} className="w-full bg-primary text-dark font-bold py-3 rounded-lg hover:shadow-lg hover:shadow-primary/25 transition">Next</button>
               </motion.div>
             )}
             {step === 2 && (
               <motion.div key="step2" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }} className="space-y-4">
                 <h2 className="text-xl font-semibold text-white mb-4">Identity Verification</h2>
-                <InputField icon={HiIdentification} placeholder="Aadhaar Number" value={form.aadhaar} onChange={(e) => update('aadhaar', e.target.value)} />
-                <InputField icon={HiPhone} placeholder="Enter 6-digit OTP" value={form.otp} onChange={(e) => update('otp', e.target.value)} maxLength={6} />
+                <div className="relative">
+                  <HiIdentification className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                  <input placeholder="Aadhaar Number" value={form.aadhaar} onChange={(e) => update('aadhaar', e.target.value)} className="w-full bg-dark border border-gray-700 rounded-lg pl-10 pr-4 py-3 text-white focus:border-primary focus:outline-none transition" />
+                </div>
+                <div className="relative">
+                  <HiPhone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                  <input placeholder="Enter 6-digit OTP" value={form.otp} onChange={(e) => update('otp', e.target.value)} maxLength={6} className="w-full bg-dark border border-gray-700 rounded-lg pl-10 pr-4 py-3 text-white focus:border-primary focus:outline-none transition" />
+                </div>
                 <p className="text-xs text-gray-500">Mock: Enter any 6-digit code</p>
                 <div className="flex gap-3">
                   <button onClick={() => setStep(1)} className="flex-1 border border-gray-700 text-gray-300 py-3 rounded-lg hover:border-primary transition">Back</button>
@@ -114,7 +124,7 @@ export default function Register() {
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
+        </form>
 
         <p className="text-center text-gray-400 text-sm mt-6">
           Already have an account? <Link to="/login" className="text-primary hover:underline">Sign in</Link>

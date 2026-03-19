@@ -71,8 +71,8 @@ Replace the `new Map()` user storage in `auth.routes.js` with real Supabase quer
 </task>
 
 ## Success Criteria
-- [ ] Server starts without crash
-- [ ] Register creates user in Supabase (verified via dashboard)
-- [ ] Login returns JWT for existing user
-- [ ] User survives server restart
-- [ ] Demo user login works: demo@nexuslife.com / Demo@123
+- [x] Server starts without crash
+- [x] Register creates user in Supabase (verified via dashboard)
+- [x] Login returns JWT for existing user
+- [x] User survives server restart
+- [x] Demo user login works: demo@nexuslife.com / Demo@123

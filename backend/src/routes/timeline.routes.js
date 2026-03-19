@@ -19,7 +19,13 @@ router.get('/events', async (req, res) => {
 
     if (error) throw new Error(error.message);
 
-    res.json({ success: true, data });
+    // Map event_type to type for frontend consistency
+    const mappedData = data.map(event => ({
+      ...event,
+      type: event.event_type,
+    }));
+
+    res.json({ success: true, data: mappedData });
   } catch (err) {
     console.error('Timeline GET error:', err.message);
     res.status(500).json({ success: false, message: 'Failed to fetch timeline events' });

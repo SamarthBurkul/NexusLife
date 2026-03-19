@@ -17,7 +17,7 @@
 **Requirements**: REQ-01, REQ-02
 
 ### Phase 2: Wire Frontend to Backend
-**Status**: 🔵 In Progress
+**Status**: ✅ Done
 **Objective**: Connect Dashboard, Timeline, ConsentPage, ConnectSources, and TrustScore pages to real backend API endpoints. Add missing backend routes (timeline CRUD). Replace all hardcoded/mock data with API calls.
 **Requirements**: REQ-03
 

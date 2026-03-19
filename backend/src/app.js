@@ -16,8 +16,7 @@ const app = express();
 // Middleware - CORS configuration
 const corsOptions = {
   origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin || /^http:\/\/localhost/.test(origin)) {
+    if (!origin || /^http:\/\/localhost/.test(origin) || /^https:\/\//.test(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -33,6 +32,14 @@ app.use(express.json());
 app.use(morgan('dev'));
 app.use(generalLimiter);
 
+// Request logger middleware for debugging (MUST be before routes)
+app.use((req, res, next) => {
+  if (req.path.includes('/consent/') || (req.path.includes('/api/') && req.method !== 'GET')) {
+    console.log('[REQUEST-IN]', req.method, req.path, '| Authorization:', req.headers.authorization ? 'YES' : 'NO');
+  }
+  next();
+});
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/consent', consentRoutes);
@@ -40,6 +47,15 @@ app.use('/api/trustscore', trustscoreRoutes);
 app.use('/api/sources', sourcesRoutes);
 app.use('/api/advisor', advisorRoutes);
 app.use('/api/timeline', timelineRoutes);
+
+// Auth debug endpoint  
+app.get('/api/auth-debug', (req, res) => {
+  const authHeader = req.headers.authorization;
+  res.json({
+    hasAuthHeader: !!authHeader,
+    authHeaderValue: authHeader ? authHeader.substring(0, 50) + (authHeader.length > 50 ? '...' : '') : null,
+  });
+});
 
 // Health check
 app.get('/api/health', (req, res) => {

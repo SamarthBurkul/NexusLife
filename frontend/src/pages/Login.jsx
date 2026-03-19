@@ -41,6 +41,7 @@ export default function Login() {
             <div className="relative">
               <HiMail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
+                autoComplete="username"
                 className="w-full bg-dark border border-gray-700 rounded-lg pl-10 pr-4 py-3 text-white focus:border-primary focus:outline-none transition"
                 placeholder="you@example.com" />
             </div>
@@ -51,6 +52,7 @@ export default function Login() {
             <div className="relative">
               <HiLockClosed className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required
+                autoComplete="current-password"
                 className="w-full bg-dark border border-gray-700 rounded-lg pl-10 pr-4 py-3 text-white focus:border-primary focus:outline-none transition"
                 placeholder="••••••••" />
             </div>
