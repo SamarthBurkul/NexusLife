@@ -41,65 +41,64 @@ export default function DataCards() {
     if (pdfLoading) return;
     setPdfLoading(true);
     try {
-      // Use requestIdleCallback for better performance
-      await new Promise(resolve => {
-        if (requestIdleCallback) {
-          requestIdleCallback(resolve, { timeout: 3000 });
-        } else {
-          setTimeout(resolve, 0);
-        }
-      });
-
       const cardElement = document.getElementById('data-card-preview');
-      const canvas = await html2canvas(cardElement, {
-        scale: 1.5, // Reduced from 2 for faster processing
+      if (!cardElement) {
+        throw new Error('Card element not found');
+      }
+
+      // Create a clean clone by stripping Tailwind and problematic CSS
+      const cloneElement = cardElement.cloneNode(true);
+      
+      // Remove all classes to eliminate oklch color references
+      const stripClasses = (el) => {
+        if (el.nodeType === 1) { // Element node
+          el.removeAttribute('class');
+          el.removeAttribute('style');
+          
+          // Set print-friendly inline styles
+          if (el.tagName.toLowerCase() !== 'svg' && el.tagName.toLowerCase() !== 'script') {
+            el.style.fontFamily = 'Arial, sans-serif';
+            if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'b', 'strong', 'p', 'span', 'div'].includes(el.tagName.toLowerCase())) {
+              el.style.color = '#000000';
+            }
+            if (['div', 'section', 'article', 'main'].includes(el.tagName.toLowerCase())) {
+              el.style.backgroundColor = '#ffffff';
+            }
+          }
+        }
+        
+        Array.from(el.childNodes).forEach(child => stripClasses(child));
+      };
+      
+      stripClasses(cloneElement);
+      
+      // Remove problematic elements
+      cloneElement.querySelectorAll('script, style, link').forEach(el => el.remove());
+      
+      // Append to a temporary hidden div
+      const tempDiv = document.createElement('div');
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.top = '-9999px';
+      tempDiv.style.width = '210mm';
+      tempDiv.style.height = 'auto';
+      tempDiv.appendChild(cloneElement);
+      document.body.appendChild(tempDiv);
+
+      const canvas = await html2canvas(cloneElement, {
+        scale: 1.5,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
-        logging: false, // Disable logging for performance
-        windowHeight: cardElement.scrollHeight,
-        windowWidth: cardElement.scrollWidth,
-        onclone: (clonedDoc) => {
-          const el = clonedDoc.getElementById('data-card-preview');
-          if (!el) return;
-          el.style.backgroundColor = '#ffffff';
-          el.style.color = '#000000';
-          el.style.fontFamily = 'Arial, sans-serif';
-          
-          const allElements = el.querySelectorAll('*');
-          allElements.forEach(elem => {
-            try {
-              // Skip SVG elements and focus on inline styles
-              if (elem.tagName.toUpperCase() === 'SVG' || elem.tagName.toUpperCase() === 'STYLE') {
-                return;
-              }
-              
-              const computedStyle = window.getComputedStyle(elem);
-              const bgColor = computedStyle.backgroundColor;
-              const textColor = computedStyle.color;
-              
-              // Convert oklch and dark colors to print-friendly colors
-              if (bgColor.includes('oklch') || bgColor.includes('rgb(31') || bgColor.includes('rgb(17')) {
-                elem.style.backgroundColor = '#ffffff';
-              }
-              if (textColor.includes('oklch') || textColor.includes('rgb(229')) {
-                elem.style.color = '#000000';
-              }
-              
-              // Remove Tailwind classes using setAttribute (works for all element types)
-              const classAttr = elem.getAttribute('class');
-              if (classAttr && (classAttr.includes('bg-') || classAttr.includes('text-'))) {
-                elem.setAttribute('class', '');
-              }
-            } catch (e) {
-              // Silently skip problematic elements (like SVG)
-              console.debug('Skipped element during PDF clone:', elem.tagName);
-            }
-          });
-        }
+        logging: false,
+        windowHeight: cloneElement.scrollHeight,
+        windowWidth: cloneElement.scrollWidth,
       });
 
-      const imgData = canvas.toDataURL('image/png', 0.8); // Compressed PNG
+      // Clean up
+      document.body.removeChild(tempDiv);
+
+      const imgData = canvas.toDataURL('image/png', 0.8);
       const pdf = new jsPDF('p', 'mm', 'a4');
       const imgWidth = 190;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
@@ -107,6 +106,7 @@ export default function DataCards() {
       pdf.save('nexuslife-data-card.pdf');
       toast.success('PDF downloaded successfully!');
     } catch(err) {
+      console.error('PDF generation error:', err);
       toast.error('PDF generation failed: ' + err.message);
     } finally {
       setPdfLoading(false);
