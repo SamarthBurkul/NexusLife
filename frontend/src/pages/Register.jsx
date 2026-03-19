@@ -13,6 +13,7 @@ const slideVariants = { enter: { x: 80, opacity: 0 }, center: { x: 0, opacity: 1
 export default function Register() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
   const [form, setForm] = useState({ fullName: '', email: '', phone: '', password: '', aadhaar: '', otp: '', domains: [] });
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -23,12 +24,25 @@ export default function Register() {
   }));
 
   const handleOTP = async () => {
+    if (isVerifying) return;
+    setIsVerifying(true);
     try {
       await verifyOTP(form.phone, form.otp);
       toast.success('OTP verified!');
       setStep(3);
-    } catch {
-      toast.error('Invalid OTP');
+      setIsVerifying(false);
+    } catch (err) {
+      const status = err.response?.status;
+      if (status === 429 || err.isRateLimited) {
+        // prefer value set by api client, else header, else default 60s
+        const retryMs = err.retryAfter || parseInt(err.response?.headers?.['retry-after'], 10) * 1000 || 60000;
+        const seconds = Math.ceil((retryMs || 60000) / 1000);
+        toast.error(err.response?.data?.message || `Too many attempts. Try again in ${seconds}s`);
+        setTimeout(() => setIsVerifying(false), retryMs || 60000);
+      } else {
+        toast.error(err.response?.data?.message || 'Invalid OTP');
+        setIsVerifying(false);
+      }
     }
   };
 
@@ -102,7 +116,9 @@ export default function Register() {
                 <p className="text-xs text-gray-500">Mock: Enter any 6-digit code</p>
                 <div className="flex gap-3">
                   <button onClick={() => setStep(1)} className="flex-1 border border-gray-700 text-gray-300 py-3 rounded-lg hover:border-primary transition">Back</button>
-                  <button onClick={handleOTP} className="flex-1 bg-primary text-dark font-bold py-3 rounded-lg hover:shadow-lg hover:shadow-primary/25 transition">Verify & Next</button>
+                  <button onClick={handleOTP} disabled={isVerifying} className="flex-1 bg-primary text-dark font-bold py-3 rounded-lg hover:shadow-lg hover:shadow-primary/25 transition disabled:opacity-50">
+                    {isVerifying ? 'Please wait...' : 'Verify & Next'}
+                  </button>
                 </div>
               </motion.div>
             )}

@@ -48,14 +48,34 @@ api.interceptors.response.use(
 
     // Don't retry auth endpoints
     if (config.url.includes('/auth/')) {
-      if (error.response?.status === 401) {
-        console.warn('[API] 401 Unauthorized - clearing token and redirecting to login');
-        localStorage.removeItem('nexuslife_token');
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
+        const status = error.response?.status;
+
+        // Surface rate-limit details so the UI can react
+        if (status === 429) {
+          const ra = error.response.headers?.['retry-after'] || error.response.headers?.['Retry-After'];
+          let retryAfterMs = 60 * 1000; // default 1 minute
+          if (ra) {
+            const asInt = parseInt(ra, 10);
+            if (!Number.isNaN(asInt)) retryAfterMs = asInt * 1000; // seconds value
+            else {
+              // try parse as HTTP date
+              const t = Date.parse(ra);
+              if (!Number.isNaN(t)) retryAfterMs = Math.max(0, t - Date.now());
+            }
+          }
+          error.isRateLimited = true;
+          error.retryAfter = retryAfterMs;
         }
-      }
-      return Promise.reject(error);
+
+        if (status === 401) {
+          console.warn('[API] 401 Unauthorized - clearing token and redirecting to login');
+          localStorage.removeItem('nexuslife_token');
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
+        }
+
+        return Promise.reject(error);
     }
 
     // Retry other endpoints on network errors (max 2 retries)
