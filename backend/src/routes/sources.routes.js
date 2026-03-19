@@ -32,12 +32,12 @@ router.get('/', async (req, res) => {
  * Mock connect a data source (simulates OAuth flow)
  */
 router.post('/connect', async (req, res) => {
-  const { sourceId } = req.body;
-  if (!sourceId) return res.status(400).json({ success: false, message: 'sourceId required' });
+  const { sourceName } = req.body;
+  if (!sourceName) return res.status(400).json({ success: false, message: 'sourceName required' });
 
   await supabase.from('connected_sources').upsert({
     user_id: req.user.id,
-    source_name: sourceId,
+    source_name: sourceName,
     status: 'active',
     last_sync: new Date().toISOString()
   }, { onConflict: 'user_id, source_name' });
@@ -45,16 +45,16 @@ router.post('/connect', async (req, res) => {
   // Fetch initial data from mock connector
   let data = null;
   try {
-    switch (sourceId) {
+    switch (sourceName.toLowerCase()) {
       case 'digilocker': data = await fetchDigiLockerData(req.user.id); break;
       case 'abha': data = await fetchABHAData(req.user.id); break;
-      case 'aa': data = await fetchAAData(req.user.id); break;
-      case 'linkedin': data = await fetchLinkedInData(req.user.id); break;
+      case 'account aggregator': data = await fetchAAData(req.user.id); break;
+      case 'linkedin / hrms': data = await fetchLinkedInData(req.user.id); break;
       default: break;
     }
   } catch { /* ignore fetch errors on connect */ }
 
-  res.json({ success: true, message: `${sourceId} connected successfully`, data });
+  res.json({ success: true, message: `${sourceName} connected successfully`, data });
 });
 
 /**

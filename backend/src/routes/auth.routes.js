@@ -73,6 +73,13 @@ router.post('/register', [
       employment_score: 18,
     });
 
+    // Seed 3 baseline life events for demo purposes
+    await supabase.from('life_events').insert([
+      { user_id: newUser.id, event_type: 'education', title: 'B.Tech Computer Science', institution: 'Mumbai University', date: '2022-06-15', verified: true },
+      { user_id: newUser.id, event_type: 'employment', title: 'Software Engineer', institution: 'Infosys', date: '2022-08-01', verified: true },
+      { user_id: newUser.id, event_type: 'health', title: 'Health Insurance Active', institution: 'Star Health', date: '2023-01-10', verified: true }
+    ]);
+
     // Generate JWT — keep same payload shape for AuthContext.jsx
     const token = jwt.sign(
       { id: newUser.id, email: newUser.email, fullName: newUser.full_name, phone: newUser.phone },

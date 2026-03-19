@@ -27,9 +27,9 @@ router.get('/', async (req, res) => {
     
     // Auto-seed backwards compatibility fix for older users
     if (!profile) {
-      const { data: newProfile } = await supabase.from('user_profiles').insert({
+      const { data: newProfile } = await supabase.from('user_profiles').upsert({
         user_id: req.user.id, trust_score: 78, education_score: 22, finance_score: 20, health_score: 18, employment_score: 18
-      }).select().single();
+      }, { onConflict: 'user_id' }).select().single();
       profile = newProfile;
     }
 

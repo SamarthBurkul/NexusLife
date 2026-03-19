@@ -5,6 +5,8 @@ import Sidebar from '../components/layout/Sidebar.jsx';
 import { HiCheckCircle, HiShare, HiDownload } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext.jsx';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 const institutionTypes = ['Bank', 'Hospital', 'Employer', 'Government', 'Insurance'];
 const purposes = ['Loan Application', 'Employment Verification', 'Insurance Claim', 'Medical Treatment', 'Government Service'];
@@ -19,13 +21,30 @@ export default function DataCards() {
   const toggleField = (f) => setSelectedFields((prev) => prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f]);
 
   const handleShare = async () => {
-    const shareUrl = `${window.location.origin}/datacards?shared=true&user=${encodeURIComponent(user?.email || 'verified')}`;
-    await navigator.clipboard.writeText(shareUrl);
-    toast.success('Link copied! Share this with the institution.');
+    const shareUrl = window.location.href;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success('Link copied to clipboard!');
+    } catch {
+      const el = document.createElement('textarea');
+      el.value = shareUrl;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      toast.success('Link copied!');
+    }
   };
 
-  const handleDownload = () => {
-    setTimeout(() => window.print(), 300);
+  const handleDownloadPDF = async () => {
+    const cardElement = document.getElementById('data-card-preview');
+    const canvas = await html2canvas(cardElement, { background: '#ffffff', scale: 2 });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const imgWidth = 190;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
+    pdf.save('nexuslife-data-card.pdf');
   };
 
   const getFieldValue = (field) => {
@@ -90,7 +109,7 @@ export default function DataCards() {
             </div>
 
             {/* Preview */}
-            <div className="card-preview">
+            <div className="card-preview" id="data-card-preview">
               <motion.div className="bg-gradient-to-br from-gray-900 to-card border border-gray-700 rounded-2xl p-6 relative overflow-hidden"
                 initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
                 
@@ -133,7 +152,7 @@ export default function DataCards() {
                     className="flex-1 flex items-center justify-center gap-2 bg-primary text-dark font-semibold py-3 rounded-xl hover:shadow-lg hover:shadow-primary/25 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed">
                     <HiShare /> Share Link
                   </button>
-                  <button onClick={handleDownload} disabled={selectedFields.length === 0}
+                  <button onClick={handleDownloadPDF} disabled={selectedFields.length === 0}
                     className="flex-1 flex items-center justify-center gap-2 border border-gray-600 text-gray-300 py-3 rounded-xl hover:border-primary hover:text-primary transition text-sm disabled:opacity-50 disabled:cursor-not-allowed">
                     <HiDownload /> Download PDF
                   </button>

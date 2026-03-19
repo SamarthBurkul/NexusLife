@@ -23,16 +23,16 @@ export default function ConnectSources() {
     api.get('/sources').then(res => {
       // Merge with icon/desc
       setSourceList(sources.map(s => {
-        const db = res.data.data.find(d => d.id === s.id);
+        const db = res.data.data.find(d => d.name && d.name.toLowerCase() === s.name.toLowerCase());
         return db ? { ...s, connected: db.connected, lastSync: db.lastSync } : s;
       }));
     }).catch(console.error);
   }, []);
 
-  const handleConnect = async (id) => {
+  const handleConnect = async (source) => {
     try {
-      await api.post('/sources/connect', { sourceId: id });
-      setSourceList((prev) => prev.map((s) => s.id === id ? { ...s, connected: true, lastSync: new Date().toISOString() } : s));
+      await api.post('/sources/connect', { sourceName: source.name });
+      setSourceList((prev) => prev.map((s) => s.id === source.id ? { ...s, connected: true, lastSync: new Date().toISOString() } : s));
       toast.success('Source connected successfully!');
     } catch { toast.error('Connection failed'); }
   };
@@ -80,7 +80,7 @@ export default function ConnectSources() {
                     </button>
                   </div>
                 ) : (
-                  <button onClick={() => handleConnect(s.id)}
+                  <button onClick={() => handleConnect(s)}
                     className="w-full flex items-center justify-center gap-2 bg-primary text-dark font-semibold py-2 rounded-lg hover:shadow-lg hover:shadow-primary/25 transition text-sm">
                     <HiCloudUpload /> Connect
                   </button>
