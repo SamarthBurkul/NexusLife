@@ -9,3 +9,4 @@ python-dotenv
 httpx
 scikit-learn
 numpy
+google-generativeai
