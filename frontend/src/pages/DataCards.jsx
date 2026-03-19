@@ -41,68 +41,117 @@ export default function DataCards() {
     if (pdfLoading) return;
     setPdfLoading(true);
     try {
-      const cardElement = document.getElementById('data-card-preview');
-      if (!cardElement) {
-        throw new Error('Card element not found');
+      // Create a properly formatted PDF document
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      let yPosition = 20;
+
+      // Set font for entire document
+      pdf.setFont('Helvetica');
+
+      // Header Section
+      pdf.setFontSize(24);
+      pdf.setTextColor(16, 185, 129); // Cyan/Teal color
+      pdf.text('NexusLife', 20, yPosition);
+      pdf.setTextColor(0, 0, 0);
+      pdf.setFontSize(10);
+      pdf.text('Universal Digital Passport', 20, yPosition + 8);
+      
+      // Verified badge
+      pdf.setDrawColor(34, 197, 94); // Green
+      pdf.setLineWidth(0.5);
+      pdf.rect(150, yPosition + 2, 35, 8);
+      pdf.setTextColor(34, 197, 94);
+      pdf.setFontSize(9);
+      pdf.text('✓ Verified', 153, yPosition + 7);
+      pdf.setTextColor(0, 0, 0);
+
+      yPosition += 20;
+
+      // Info Section (For, Purpose)
+      if (institutionType || purpose) {
+        pdf.setFontSize(11);
+        pdf.setTextColor(100, 100, 100);
+        if (institutionType) {
+          pdf.text('For: ', 20, yPosition);
+          pdf.setTextColor(0, 0, 0);
+          pdf.setFont('Helvetica', 'bold');
+          pdf.text(institutionType, 40, yPosition);
+          pdf.setFont('Helvetica', 'normal');
+          pdf.setTextColor(100, 100, 100);
+          yPosition += 8;
+        }
+        if (purpose) {
+          pdf.text('Purpose: ', 20, yPosition);
+          pdf.setTextColor(0, 0, 0);
+          pdf.setFont('Helvetica', 'bold');
+          pdf.text(purpose, 40, yPosition);
+          pdf.setFont('Helvetica', 'normal');
+          yPosition += 8;
+        }
       }
 
-      // Create a clean clone by stripping Tailwind and problematic CSS
-      const cloneElement = cardElement.cloneNode(true);
-      
-      // Remove all classes to eliminate oklch color references
-      const stripClasses = (el) => {
-        if (el.nodeType === 1) { // Element node
-          el.removeAttribute('class');
-          el.removeAttribute('style');
-          
-          // Set print-friendly inline styles
-          if (el.tagName.toLowerCase() !== 'svg' && el.tagName.toLowerCase() !== 'script') {
-            el.style.fontFamily = 'Arial, sans-serif';
-            if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'b', 'strong', 'p', 'span', 'div'].includes(el.tagName.toLowerCase())) {
-              el.style.color = '#000000';
-            }
-            if (['div', 'section', 'article', 'main'].includes(el.tagName.toLowerCase())) {
-              el.style.backgroundColor = '#ffffff';
-            }
-          }
-        }
-        
-        Array.from(el.childNodes).forEach(child => stripClasses(child));
-      };
-      
-      stripClasses(cloneElement);
-      
-      // Remove problematic elements
-      cloneElement.querySelectorAll('script, style, link').forEach(el => el.remove());
-      
-      // Append to a temporary hidden div
-      const tempDiv = document.createElement('div');
-      tempDiv.style.position = 'absolute';
-      tempDiv.style.left = '-9999px';
-      tempDiv.style.top = '-9999px';
-      tempDiv.style.width = '210mm';
-      tempDiv.style.height = 'auto';
-      tempDiv.appendChild(cloneElement);
-      document.body.appendChild(tempDiv);
+      yPosition += 5;
 
-      const canvas = await html2canvas(cloneElement, {
-        scale: 1.5,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-        windowHeight: cloneElement.scrollHeight,
-        windowWidth: cloneElement.scrollWidth,
+      // Divider line
+      pdf.setDrawColor(200, 200, 200);
+      pdf.setLineWidth(0.3);
+      pdf.line(20, yPosition, pageWidth - 20, yPosition);
+
+      yPosition += 10;
+
+      // Shared Information Card
+      pdf.setFontSize(14);
+      pdf.setTextColor(0, 0, 0);
+      pdf.setFont('Helvetica', 'bold');
+      pdf.text('Shared Information', 20, yPosition);
+      pdf.setFont('Helvetica', 'normal');
+
+      yPosition += 12;
+
+      // Card background
+      pdf.setFillColor(245, 245, 247);
+      pdf.rect(15, yPosition - 8, pageWidth - 30, (selectedFields.length * 10) + 15, 'F');
+
+      // Fields in card
+      pdf.setFontSize(10);
+      selectedFields.forEach((field, index) => {
+        const value = getFieldValue(field);
+        
+        // Field name
+        pdf.setTextColor(80, 80, 80);
+        pdf.setFont('Helvetica', 'normal');
+        pdf.text(`✓ ${field}`, 25, yPosition);
+
+        // Field value
+        pdf.setTextColor(0, 0, 0);
+        pdf.setFont('Helvetica', 'bold');
+        pdf.text(value, pageWidth - 30, yPosition, { align: 'right' });
+
+        yPosition += 10;
       });
 
-      // Clean up
-      document.body.removeChild(tempDiv);
+      if (selectedFields.length === 0) {
+        pdf.setTextColor(150, 150, 150);
+        pdf.setFont('Helvetica', 'italic');
+        pdf.text('No fields selected', 25, yPosition);
+        yPosition += 10;
+      }
 
-      const imgData = canvas.toDataURL('image/png', 0.8);
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgWidth = 190;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
+      yPosition += 5;
+
+      // Footer info
+      yPosition = pageHeight - 25;
+      pdf.setFontSize(9);
+      pdf.setTextColor(150, 150, 150);
+      pdf.setFont('Helvetica', 'normal');
+      pdf.text(`Generated on: ${new Date().toLocaleString()}`, 20, yPosition);
+      pdf.text(`NexusLife - Your Universal Digital Passport`, 20, yPosition + 8);
+
+      // Page number
+      pdf.text(`Page 1 of 1`, pageWidth - 30, yPosition);
+
       pdf.save('nexuslife-data-card.pdf');
       toast.success('PDF downloaded successfully!');
     } catch(err) {
