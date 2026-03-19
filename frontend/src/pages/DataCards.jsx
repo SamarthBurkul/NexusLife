@@ -52,10 +52,12 @@ export default function DataCards() {
           el.style.fontFamily = 'Arial, sans-serif';
           const allElements = el.querySelectorAll('*');
           allElements.forEach(elem => {
-            const color = getComputedStyle(elem).color;
-            if (color && color.includes('oklch')) {
-              elem.style.color = color.replace(/oklch\([^)]+\)/g, '#000000');
-            }
+            const style = window.getComputedStyle(elem);
+            ['backgroundColor', 'color', 'borderColor', 'outlineColor', 'fill', 'stroke'].forEach(prop => {
+              if (style[prop] && style[prop].includes('oklch')) {
+                elem.style[prop] = prop === 'backgroundColor' ? '#ffffff' : (prop === 'borderColor' ? '#cccccc' : '#000000');
+              }
+            });
           });
         }
       });
