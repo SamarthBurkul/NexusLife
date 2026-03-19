@@ -36,13 +36,46 @@ const features = [
 ];
 
 export default function Landing() {
-  const names = ['Arjun Sharma', 'Jivesh Singasane', 'Ankita Pawar', 'Samarth Burkul', 'Asmee Jadhav'];
-  const [nameIdx, setNameIdx] = useState(0);
+  const profiles = [
+    {
+      name: 'Jivesh Singasane',
+      data: [
+        { label: "Identity", val: 'Aadhaar Verified', icon: HiShieldCheck, c: 'text-orange-400' },
+        { label: "Education", val: 'B.Tech CS / SPIT Mumbai', icon: HiDocumentText, c: 'text-primary' },
+        { label: "Finance", val: 'SBI Active / PAN Verified', icon: HiChartBar, c: 'text-accent' }
+      ]
+    },
+    {
+      name: 'Ankita Pawar',
+      data: [
+        { label: "Healthcare", val: 'ABHA Linked / Vitals OK', icon: HiShieldCheck, c: 'text-red-400' },
+        { label: "Employment", val: 'Sr. Analyst @ TCS', icon: HiDocumentText, c: 'text-blue-400' },
+        { label: "Finance", val: 'Credit Score: 810', icon: HiChartBar, c: 'text-accent' }
+      ]
+    },
+    {
+      name: 'Samarth Burkul',
+      data: [
+        { label: "Identity", val: 'DigiLocker Synced', icon: HiShieldCheck, c: 'text-orange-400' },
+        { label: "Health", val: 'Insurance Active 2026', icon: HiDocumentText, c: 'text-red-400' },
+        { label: "Education", val: 'M.Sc Data Science', icon: HiChartBar, c: 'text-primary' }
+      ]
+    },
+    {
+      name: 'Asmee Jadhav',
+      data: [
+        { label: "Employment", val: 'Product Manager', icon: HiShieldCheck, c: 'text-blue-400' },
+        { label: "Finance", val: 'Tax Returns Filed (AY 25)', icon: HiChartBar, c: 'text-accent' },
+        { label: "Trust Score", val: 'Exceptional (92/100)', icon: HiDocumentText, c: 'text-primary' }
+      ]
+    }
+  ];
+  const [profileIdx, setProfileIdx] = useState(0);
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setNameIdx((prev) => (prev + 1) % names.length);
-    }, 3000);
+      setProfileIdx((prev) => (prev + 1) % profiles.length);
+    }, 3500);
     return () => clearInterval(timer);
   }, []);
 
@@ -101,27 +134,29 @@ export default function Landing() {
               <div>
                 <p className="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Holder Name</p>
                 <motion.p 
-                  key={nameIdx}
+                  key={`name-${profileIdx}`}
                   initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="text-2xl text-white font-medium"
                 >
-                  {names[nameIdx]}
+                  {profiles[profileIdx].name}
                 </motion.p>
               </div>
-              <div className="space-y-3 pt-4 border-t border-white/5">
-                {[
-                  { label: "Identity", val: 'Aadhaar Verified', icon: HiShieldCheck, c: 'text-orange-400' },
-                  { label: "Education", val: 'B.Tech CS / Mumbai Univ', icon: HiDocumentText, c: 'text-primary' },
-                  { label: "Finance", val: 'HDFC Active / Tax Cleared', icon: HiChartBar, c: 'text-accent' }
-                ].map((item, i) => (
-                  <div key={i} className="flex gap-3 items-center bg-white/5 p-3 rounded-xl">
+              <div className="space-y-3 pt-4 border-t border-white/5 relative min-h-[160px]">
+                {profiles[profileIdx].data.map((item, i) => (
+                  <motion.div 
+                    key={`data-${profileIdx}-${i}`}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.1 }}
+                    className="flex gap-3 items-center bg-white/5 p-3 rounded-xl"
+                  >
                     <div className={`p-2 bg-black/40 rounded-lg ${item.c}`}><item.icon size={18} /></div>
                     <div>
                       <p className="text-gray-400 text-[10px] uppercase font-bold tracking-wider">{item.label}</p>
                       <p className="text-white text-sm font-medium">{item.val}</p>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             </div>
