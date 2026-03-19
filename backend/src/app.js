@@ -17,7 +17,8 @@ const app = express();
 const corsOptions = {
   origin: function(origin, callback) {
     if (!origin || /^http:\/\/localhost/.test(origin) || /^https:\/\//.test(origin)) {
-      callback(null, true);
+      // Explicitly return the exact origin without any trailing slashes
+      callback(null, origin ? origin.replace(/\/$/, '') : '*');
     } else {
       callback(new Error('Not allowed by CORS'));
     }
