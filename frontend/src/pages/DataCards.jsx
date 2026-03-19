@@ -65,14 +65,35 @@ export default function DataCards() {
           el.style.backgroundColor = '#ffffff';
           el.style.color = '#000000';
           el.style.fontFamily = 'Arial, sans-serif';
+          
           const allElements = el.querySelectorAll('*');
           allElements.forEach(elem => {
-            const styles = elem.getAttribute('style') || '';
-            if (styles.includes('oklch')) {
-              elem.className = ''; // Remove Tailwind classes
-              elem.style.backgroundColor = '#ffffff';
-              elem.style.color = '#000000';
-              elem.style.borderColor = '#cccccc';
+            try {
+              // Skip SVG elements and focus on inline styles
+              if (elem.tagName.toUpperCase() === 'SVG' || elem.tagName.toUpperCase() === 'STYLE') {
+                return;
+              }
+              
+              const computedStyle = window.getComputedStyle(elem);
+              const bgColor = computedStyle.backgroundColor;
+              const textColor = computedStyle.color;
+              
+              // Convert oklch and dark colors to print-friendly colors
+              if (bgColor.includes('oklch') || bgColor.includes('rgb(31') || bgColor.includes('rgb(17')) {
+                elem.style.backgroundColor = '#ffffff';
+              }
+              if (textColor.includes('oklch') || textColor.includes('rgb(229')) {
+                elem.style.color = '#000000';
+              }
+              
+              // Remove Tailwind classes using setAttribute (works for all element types)
+              const classAttr = elem.getAttribute('class');
+              if (classAttr && (classAttr.includes('bg-') || classAttr.includes('text-'))) {
+                elem.setAttribute('class', '');
+              }
+            } catch (e) {
+              // Silently skip problematic elements (like SVG)
+              console.debug('Skipped element during PDF clone:', elem.tagName);
             }
           });
         }
