@@ -9,19 +9,25 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
+    
     try {
       const res = await loginApi(email, password);
       login(res.data.token);
       toast.success('Welcome back!');
       navigate('/dashboard');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Login failed');
+      const errorMsg = err.response?.data?.message || err.message || 'Login failed';
+      setError(errorMsg);
+      toast.error(errorMsg);
+      console.error('Login error:', err);
     } finally {
       setLoading(false);
     }
@@ -36,6 +42,11 @@ export default function Login() {
         </div>
 
         <form onSubmit={handleSubmit} className="bg-card border border-gray-800 rounded-2xl p-8 space-y-6">
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
           <div>
             <label className="block text-sm text-gray-400 mb-2">Email</label>
             <div className="relative">

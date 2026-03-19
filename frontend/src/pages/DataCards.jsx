@@ -17,6 +17,7 @@ export default function DataCards() {
   const [institutionType, setInstitutionType] = useState('');
   const [purpose, setPurpose] = useState('');
   const [selectedFields, setSelectedFields] = useState([]);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const toggleField = (f) => setSelectedFields((prev) => prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f]);
 
@@ -37,13 +38,27 @@ export default function DataCards() {
   };
 
   const handleDownloadPDF = async () => {
+    if (pdfLoading) return;
+    setPdfLoading(true);
     try {
+      // Use requestIdleCallback for better performance
+      await new Promise(resolve => {
+        if (requestIdleCallback) {
+          requestIdleCallback(resolve, { timeout: 3000 });
+        } else {
+          setTimeout(resolve, 0);
+        }
+      });
+
       const cardElement = document.getElementById('data-card-preview');
       const canvas = await html2canvas(cardElement, {
-        scale: 2,
+        scale: 1.5, // Reduced from 2 for faster processing
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
+        logging: false, // Disable logging for performance
+        windowHeight: cardElement.scrollHeight,
+        windowWidth: cardElement.scrollWidth,
         onclone: (clonedDoc) => {
           const el = clonedDoc.getElementById('data-card-preview');
           if (!el) return;
@@ -52,23 +67,28 @@ export default function DataCards() {
           el.style.fontFamily = 'Arial, sans-serif';
           const allElements = el.querySelectorAll('*');
           allElements.forEach(elem => {
-            const style = window.getComputedStyle(elem);
-            ['backgroundColor', 'color', 'borderColor', 'outlineColor', 'fill', 'stroke'].forEach(prop => {
-              if (style[prop] && style[prop].includes('oklch')) {
-                elem.style[prop] = prop === 'backgroundColor' ? '#ffffff' : (prop === 'borderColor' ? '#cccccc' : '#000000');
-              }
-            });
+            const styles = elem.getAttribute('style') || '';
+            if (styles.includes('oklch')) {
+              elem.className = ''; // Remove Tailwind classes
+              elem.style.backgroundColor = '#ffffff';
+              elem.style.color = '#000000';
+              elem.style.borderColor = '#cccccc';
+            }
           });
         }
       });
-      const imgData = canvas.toDataURL('image/png');
+
+      const imgData = canvas.toDataURL('image/png', 0.8); // Compressed PNG
       const pdf = new jsPDF('p', 'mm', 'a4');
       const imgWidth = 190;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
       pdf.save('nexuslife-data-card.pdf');
+      toast.success('PDF downloaded successfully!');
     } catch(err) {
       toast.error('PDF generation failed: ' + err.message);
+    } finally {
+      setPdfLoading(false);
     }
   };
 
@@ -177,9 +197,18 @@ export default function DataCards() {
                     className="flex-1 flex items-center justify-center gap-2 bg-primary text-dark font-semibold py-3 rounded-xl hover:shadow-lg hover:shadow-primary/25 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed">
                     <HiShare /> Share Link
                   </button>
-                  <button onClick={handleDownloadPDF} disabled={selectedFields.length === 0}
+                  <button onClick={handleDownloadPDF} disabled={selectedFields.length === 0 || pdfLoading}
                     className="flex-1 flex items-center justify-center gap-2 border border-gray-600 text-gray-300 py-3 rounded-xl hover:border-primary hover:text-primary transition text-sm disabled:opacity-50 disabled:cursor-not-allowed">
-                    <HiDownload /> Download PDF
+                    {pdfLoading ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <HiDownload /> Download PDF
+                      </>
+                    )}
                   </button>
                 </div>
 

@@ -9,7 +9,7 @@ if (!baseURL.endsWith('/api') && !baseURL.includes('localhost')) {
 const api = axios.create({
   baseURL,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 30000, // Increased timeout for complex operations
+  timeout: 15000, // Reduced from 30s to 15s for faster feedback
 });
 
 // Attach JWT token to every request
@@ -24,17 +24,36 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401 responses — redirect to login
+// Retry logic for failed requests (except login/auth endpoints)
+let retryCount = {};
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      console.warn('[API] 401 Unauthorized - clearing token and redirecting to login');
-      localStorage.removeItem('nexuslife_token');
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+  async (error) => {
+    const config = error.config;
+    if (!config) return Promise.reject(error);
+
+    // Don't retry auth endpoints
+    if (config.url.includes('/auth/')) {
+      if (error.response?.status === 401) {
+        console.warn('[API] 401 Unauthorized - clearing token and redirecting to login');
+        localStorage.removeItem('nexuslife_token');
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
       }
+      return Promise.reject(error);
     }
+
+    // Retry other endpoints on network errors (max 2 retries)
+    if (!retryCount[config.url]) retryCount[config.url] = 0;
+    
+    if ((error.code === 'ECONNABORTED' || error.message === 'Network Error') && retryCount[config.url] < 2) {
+      retryCount[config.url]++;
+      console.log(`[API] Retrying ${config.url} (attempt ${retryCount[config.url]})`);
+      return new Promise(resolve => setTimeout(() => resolve(api(config)), 500));
+    }
+    
+    if (retryCount[config.url]) delete retryCount[config.url];
     return Promise.reject(error);
   }
 );
